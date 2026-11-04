@@ -1,0 +1,5 @@
+# HTML/JS are text; keep line endings stable across Windows and Linux
+*.html text eol=lf
+*.js   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf

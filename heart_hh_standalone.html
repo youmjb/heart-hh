@@ -1,0 +1,5148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>활동전압 시뮬레이션 — Hodgkin–Huxley 모델</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --line:#d7dbe0; --ink:#1d2530; --muted:#68727f;
+    --accent:#1b6ec2; --accent2:#0f8a5f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.45 "Malgun Gothic","Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+         padding:8px 14px;background:#22303f;color:#fff}
+  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px}
+  header .sub{font-size:11px;color:#9fb1c4}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  button{font:inherit;padding:5px 12px;border:1px solid var(--line);border-radius:4px;
+         background:#fff;color:var(--ink);cursor:pointer}
+  button:hover:not(:disabled){background:#eef3f8;border-color:#9db6cf}
+  button:disabled{opacity:.45;cursor:default}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover:not(:disabled){background:#1559a0}
+  button.small{padding:2px 7px;font-size:12px}
+
+  /* app shell: header / body / footer fill the window, the two panes
+     scroll independently so the graphs never scroll out of view */
+  html,body{height:100%}
+  body{display:flex;flex-direction:column;overflow:hidden}
+  main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 372px;
+       gap:12px;padding:12px;align-items:stretch}
+  .plots{display:flex;flex-direction:column;gap:10px;min-width:0;overflow-y:auto;padding-right:2px}
+  aside{overflow-y:auto;padding-right:2px}
+  .cwrap{height:clamp(170px,29vh,320px)}
+
+  /* episode progress */
+  .prog{width:120px;height:5px;border-radius:3px;background:#3d4d5e;overflow:hidden}
+  .prog > i{display:block;height:100%;width:0;background:#4da3ff;transition:width .12s linear}
+  header .kbd{font-size:10.5px;color:#8fa3b8;border:1px solid #3d4d5e;border-radius:3px;
+              padding:1px 4px;font-family:"Consolas",monospace}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+  .card h2{margin:0;padding:6px 10px;font-size:12px;font-weight:600;color:var(--muted);
+           border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .card h2 .spacer{margin-left:auto}
+  .cwrap{position:relative;width:100%}
+  .cwrap canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;background:transparent}
+  .cwrap canvas.ov{pointer-events:none;background:none}
+  .cwrap{cursor:crosshair}
+  .rangebar{display:flex;gap:8px 14px;align-items:center;padding:6px 10px;
+            border-top:1px solid var(--line);font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .rangebar input{width:66px;height:24px}
+  .rangebar select{height:24px}
+  .rangebar .grp{display:inline-flex;align-items:center;gap:5px}
+  .rangebar .grp b{font-weight:600;color:var(--ink);font-size:11px}
+  .rangebar .sep{width:1px;height:18px;background:var(--line)}
+
+  /* cursor readout */
+  .readout{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:5px 10px;
+           border-top:1px solid var(--line);font-size:12px;
+           font-family:"Consolas","D2Coding",monospace;min-height:30px;background:#fbfcfd}
+  .readout .t{font-weight:700;color:var(--ink)}
+  .readout .v{display:inline-flex;align-items:center;gap:4px}
+  .readout .v i{width:10px;height:10px;border-radius:2px;display:inline-block;font-style:normal}
+  .readout .hint{color:var(--muted);font-family:inherit}
+  .readout .delta{color:#b45309;font-weight:700}
+
+  /* measurement table */
+  .mtable{max-height:340px;overflow:auto}
+  .mtable table{border-collapse:collapse;width:100%;font-size:11.5px;
+                font-family:"Consolas","D2Coding",monospace}
+  .mtable th,.mtable td{border:1px solid var(--line);padding:3px 6px;text-align:right;white-space:nowrap}
+  .mtable th{background:#eef1f4;position:sticky;top:0;text-align:center;font-weight:600}
+  .mtable td.ep{text-align:center;font-weight:700}
+  .mtable tr.fire td{background:#eaf7ee}
+  .mwin{padding:5px 10px;font-size:11.5px;border-bottom:1px solid var(--line);
+        background:#fdf6ec;color:#8a5a12}
+  .mwin b{color:#b45309}
+
+  /* strength-duration panel */
+  .sdctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 10px;
+         border-bottom:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+  .sdctl input[type=text]{width:190px;text-align:left}
+  .sdctl input[type=number]{width:62px}
+  .sdmsg{color:var(--accent);font-weight:600}
+  .sdwrap{padding:6px 10px}
+  .sdwrap canvas{display:block;width:100%;height:230px}
+  .sdres{padding:0 10px 10px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .sdres table{border-collapse:collapse;font-size:11.5px;
+               font-family:"Consolas","D2Coding",monospace}
+  .sdres th,.sdres td{border:1px solid var(--line);padding:2px 7px;text-align:right}
+  .sdres th{background:#eef1f4;font-weight:600;text-align:center}
+  .sdres tbody tr{cursor:pointer}
+  .sdres tbody tr:hover td{background:#eef6ff}
+  .sdfit{flex:1;min-width:260px;font-size:11.5px;line-height:1.65}
+  .sdfit .big{font-size:13px;font-weight:700;color:var(--ink)}
+  .sdfit .ir{color:#b45309}
+  .sdfit .cx{color:#0f8a5f}
+  .sdfit .def{color:var(--muted);margin-top:6px;padding-top:6px;
+              border-top:1px solid var(--line)}
+
+  input[type=number],input[type=text],select{font:inherit;padding:3px 5px;border:1px solid var(--line);
+        border-radius:3px;background:#fff;color:var(--ink)}
+  input[type=number]{width:92px;text-align:right}
+
+  aside{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .tabs{display:flex;border-bottom:1px solid var(--line);background:#eef1f4;border-radius:6px 6px 0 0;overflow:hidden}
+  .tabbtn{flex:1;padding:6px 4px;border:0;border-right:1px solid var(--line);background:transparent;
+          font-size:12px;border-radius:0}
+  .tabbtn:last-child{border-right:0}
+  .tabbtn.active{background:#fff;font-weight:600;color:var(--accent)}
+  .tabpane{display:none;padding:8px 10px;max-height:44vh;overflow:auto}
+  .tabpane.active{display:block}
+  .prow{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+  .prow label{flex:1;font-size:11.5px;color:var(--muted);line-height:1.2}
+  .prow .unit{width:26px;font-size:10.5px;color:var(--muted);text-align:left}
+  .phead{font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.4px;
+         margin:8px 0 3px;padding-bottom:2px;border-bottom:1px solid var(--line)}
+  .phead:first-child{margin-top:0}
+
+  /* pulse protocol preview */
+  .ppv{border:1px solid var(--line);border-radius:5px;background:#fff;margin-bottom:6px}
+  .ppv canvas{display:block;width:100%;height:104px}
+  .ppv .cap{font-size:10.5px;color:var(--muted);padding:3px 6px 4px;line-height:1.4;
+            border-top:1px solid var(--line)}
+  .ppv .cap b{color:var(--ink)}
+
+  /* 접이식 설명 */
+  details.how{margin:0;border-bottom:1px solid var(--line);background:#fbfcfd}
+  details.how > summary{cursor:pointer;padding:5px 10px;font-size:11.5px;
+        color:var(--accent);font-weight:600;list-style:none;user-select:none}
+  details.how > summary::-webkit-details-marker{display:none}
+  details.how > summary::before{content:'▸ ';font-weight:700}
+  details.how[open] > summary::before{content:'▾ '}
+  details.how > summary:hover{background:#eef3f8}
+  .howbody{padding:2px 12px 10px;font-size:11.5px;line-height:1.7;color:var(--ink)}
+  .howbody h4{margin:9px 0 3px;font-size:11.5px;color:var(--accent)}
+  .howbody p{margin:3px 0}
+  .howbody code{background:#eef1f4;padding:0 3px;border-radius:2px}
+  .howbody table{border-collapse:collapse;font-size:11px;margin:4px 0;
+        font-family:"Consolas","D2Coding",monospace}
+  .howbody th,.howbody td{border:1px solid var(--line);padding:1px 7px;text-align:right}
+  .howbody th{background:#eef1f4;text-align:center}
+  .howbody td.ok{color:#0f8a5f;font-weight:700;text-align:center}
+  .howbody td.no{color:#b45309;text-align:center}
+  .howbody .warn{margin-top:8px;padding:6px 8px;background:#fdf6ec;
+        border-left:3px solid #d9a441;border-radius:2px;color:#7a5410}
+
+  /* episode colour legend */
+  .eplegend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .eplegend .bar{height:9px;width:80px;border:1px solid var(--line);border-radius:2px}
+
+  .chrow{display:flex;align-items:center;gap:6px;padding:1px 0;font-size:12px;cursor:pointer}
+  .swatch{width:14px;height:8px;border:1px solid #999;border-radius:1px;flex:none}
+  .chname{flex:1}
+  .chrow.hh .chname{font-weight:700;color:var(--ink)}
+  .opts{padding:8px 10px;display:flex;flex-direction:column;gap:5px;font-size:12px}
+  .opts label{display:flex;align-items:center;gap:6px}
+  .opts .inline{flex-direction:row;flex-wrap:wrap;gap:12px;display:flex}
+
+  /* label above control — keeps long captions from being squeezed by flex */
+  .field{display:flex;flex-direction:column;gap:3px;margin-bottom:2px}
+  .field > .cap{font-size:11px;color:var(--muted);letter-spacing:.2px}
+  .field > select,.field > input{width:100%;height:26px}
+  .field > input[type=file]{height:auto;padding:2px;font-size:11px}
+  .field.row{flex-direction:row;align-items:center;justify-content:space-between;gap:8px}
+  .field.row > .cap{flex:1}
+  .field.row > input{width:88px;text-align:right}
+
+  /* grouped block of related settings */
+  .group{border:1px solid var(--line);border-radius:5px;padding:7px 8px 4px;
+         margin:2px 0 4px;background:#fafbfc}
+  .group > .gtitle{font-size:10.5px;font-weight:700;color:var(--muted);
+                   letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px}
+  .group .note2{font-size:10.5px;color:var(--muted);line-height:1.45;margin-top:2px}
+  .btnrow{display:flex;gap:6px;padding:0 10px 9px;flex-wrap:wrap}
+
+  footer{padding:6px 14px;background:#22303f;color:#c7d4e1;font-size:12px;
+         display:flex;gap:16px;flex-wrap:wrap}
+  #status{font-weight:600;color:#fff}
+  .note{font-size:11px;color:var(--muted);padding:0 10px 8px;line-height:1.5}
+  hr.sep{border:0;border-top:1px solid var(--line);margin:4px 0}
+
+  /* ---- narrow screens (phone portrait, small tablet) ---------------
+     The two-pane shell needs a 372 px side column; below about 820 px
+     that column would eat the whole width and the graphs would vanish.
+     Stack the two panes and let the whole page scroll instead of
+     scrolling each pane on its own.                                  */
+  @media (max-width:820px){
+    html,body{height:auto}
+    body{display:block;overflow:visible}
+    main{display:block;padding:8px}
+    .plots{display:flex;flex-direction:column;gap:10px;overflow:visible;padding-right:0}
+    aside{display:flex;flex-direction:column;gap:10px;
+          overflow:visible;padding-right:0;margin-top:10px}
+    .cwrap{height:clamp(200px,34vh,300px)}
+    /* nested scroll areas inside a scrolling page are hard to use by
+       touch -- let these grow and scroll with the page */
+    .tabpane{max-height:none}
+    .mtable{max-height:none}
+
+    /* keep 실행 / 일시정지 reachable without scrolling back up */
+    header{position:sticky;top:0;z-index:20;gap:8px;padding:6px 10px}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    header .kbd{display:none}
+    .toolbar{margin-left:0;width:100%;gap:6px}
+    .toolbar button,.toolbar a{padding:5px 9px}
+    .prog{flex:1;min-width:60px}
+    footer{position:sticky;bottom:0;z-index:20}
+    #ionReadout{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>활동전압 시뮬레이션</h1>
+    <div class="sub">Hodgkin–Huxley 모델 · 신경 활동전압과 막전류</div>
+  </div>
+  <div class="toolbar">
+    <label style="display:flex;gap:5px;align-items:center">
+      <input type="radio" name="mode" value="ap" checked> 전류고정 (AP)
+    </label>
+    <label style="display:flex;gap:5px;align-items:center">
+      <input type="radio" name="mode" value="vc"> 전압고정 (VC)
+    </label>
+    <span class="prog" id="prog" title="에피소드 진행"><i id="progBar"></i></span>
+    <button id="btnPlay" class="primary">▶ 실행 <span class="kbd">F2</span></button>
+    <button id="btnStop">❚❚ 일시정지 <span class="kbd">Space</span></button>
+    <button id="btnAbort">■ 중단 <span class="kbd">Esc</span></button>
+    <button id="btnNewCell">새 세포</button>
+    <a id="lnkManual" href="manual.html" target="_blank" rel="noopener"
+       title="실습 매뉴얼을 새 탭에서 엽니다 — 같은 폴더의 manual.html"
+       style="font:inherit;padding:5px 12px;border:1px solid #3d4d5e;border-radius:4px;
+              background:#2c3e51;color:#cfe3f7;text-decoration:none">📖 실습 매뉴얼</a>
+  </div>
+</header>
+
+<main>
+  <section class="plots">
+    <div class="card">
+      <h2>전류 / Current
+        <span class="spacer"></span>
+        <button class="small" id="btnAutoCur" title="그려진 파형에 Y축을 자동으로 맞춥니다">자동 스케일</button>
+        <button class="small" id="btnCurUp">Y 확대</button>
+        <button class="small" id="btnCurDown">Y 축소</button>
+        <button class="small" id="btnPngCur">PNG</button>
+      </h2>
+      <div class="cwrap" id="wrapCur">
+        <canvas id="canvasCur"></canvas>
+        <canvas id="ovCur" class="ov"></canvas>
+      </div>
+      <div class="readout" id="readout">
+        <span class="hint">그래프 위에 마우스를 올리면 값을 읽습니다. 두 번 클릭해 A·B 를 찍으면 구간을 재고, 측정표가 그 구간으로 자동으로 만들어집니다.</span>
+      </div>
+      <div class="rangebar">
+        <span class="grp"><b>커서</b>
+          <select id="selReadEp" title="Overlap 으로 겹친 에피소드 중 값을 읽을 대상">
+            <option value="-1">마지막 ep</option>
+          </select>
+          <button class="small" id="btnZoomMark" title="A·B 사이만 시간축을 확대합니다">A·B 확대</button>
+          <button class="small" id="btnZoomOut" title="시간축을 전체 구간으로 되돌립니다">전체 보기</button>
+          <button class="small" id="btnClearMark">A·B 지우기</button>
+        </span>
+        <span class="sep"></span>
+        <span class="grp"><b>전류 Y</b>
+          <input type="number" id="curMin" step="any" value="-1"> ~
+          <input type="number" id="curMax" step="any" value="1"> nA
+        </span>
+        <span class="grp"><b>막전위 Y</b>
+          <input type="number" id="volMin" step="any" value="-120"> ~
+          <input type="number" id="volMax" step="any" value="80"> mV
+        </span>
+        <span class="grp">
+          <button class="small" id="btnApplyRange">적용</button>
+          <button class="small" id="btnAutoBoth">전체 자동 스케일</button>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>막전위 / Membrane potential
+        <span class="spacer"></span>
+        <button class="small" id="btnAutoVol" title="그려진 파형에 Y축을 자동으로 맞춥니다">자동 스케일</button>
+        <button class="small" id="btnVolUp">Y 확대</button>
+        <button class="small" id="btnVolDown">Y 축소</button>
+        <button class="small" id="btnPngVol">PNG</button>
+      </h2>
+      <div class="cwrap" id="wrapVol">
+        <canvas id="canvasVol"></canvas>
+        <canvas id="ovVol" class="ov"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>에피소드별 측정값
+        <label id="labMeasureAB" style="display:flex;align-items:center;gap:4px;font-weight:400"
+               title="A·B 를 찍어 두면 그 구간 안에서만 peak·APD 를 계산합니다">
+          <input type="checkbox" id="chkMeasureAB" disabled> A·B 구간만
+        </label>
+        <span class="spacer"></span>
+        <button class="small" id="btnMeasure">측정표 만들기</button>
+        <button class="small" id="btnMeasureCsv">CSV 저장</button>
+        <button class="small" id="btnMeasureHide">닫기</button>
+      </h2>
+      <div class="mwin" id="measureWin" hidden></div>
+      <div class="mtable" id="measureBox" hidden></div>
+    </div>
+
+    <div class="card">
+      <h2>강도–지속시간 곡선 · rheobase 와 chronaxie
+        <span class="spacer"></span>
+        <button class="small" id="btnSDRun">자동 측정</button>
+        <button class="small" id="btnSDCsv">CSV 저장</button>
+        <button class="small" id="btnSDHide">닫기</button>
+      </h2>
+      <div id="sdBox" hidden>
+        <div class="sdctl">
+          <span>자극기간 (ms)</span>
+          <input type="text" id="sdDur" value="1, 2, 5, 10, 20, 50, 100">
+          <span>역치 판정 Vm ≥</span>
+          <input type="number" id="sdLevel" step="any" value="-20"> mV
+          <span class="sdmsg" id="sdMsg"></span>
+        </div>
+
+        <details class="how">
+          <summary>어떻게 재나요? — 자동 측정 절차</summary>
+          <div class="howbody">
+            <p>하는 일은 한 문장입니다. <b>“자극기간을 하나 정해 놓고 전류를 올렸다 내렸다 하며
+            AP 가 겨우 나는 세기를 찾는다”</b> 를 자극기간마다 반복하고, 마지막에
+            <b>“전류를 2 Ir 로 고정하고 이번엔 시간을 줄여가며 겨우 나는 길이를 찾는다”</b>
+            를 한 번 더 합니다. 손으로 하던 일을 그대로 자동화한 것입니다.</p>
+
+            <h4>① 판정 1회</h4>
+            <p>자극 세기 <code>a</code> 를 넣고 → <b>안정막전위의 새 세포</b>에서 한 에피소드를
+            끝까지 계산 → 그동안 Vm 최고값이 <b>−20 mV</b> 를 넘으면 발화(○), 아니면 실패(×).
+            역치 이하 반응은 −60 mV 근처에서 멈추고 AP 는 +20 ~ +40 mV 까지 가서
+            <b>그 사이가 비어 있으므로</b> 애매한 경우가 없습니다.
+            매번 새 세포로 시작하는 이유는, 이어서 돌리면 직전 상태가 남아 역치가
+            흔들리기 때문입니다.</p>
+
+            <h4>② 역치전류 — 전류를 반씩 좁히기(이분법)</h4>
+            <p>all-or-none 이라 “세면 반드시 나고 약하면 반드시 안 난다” 가 보장됩니다.
+            경계가 하나뿐이므로 반씩 좁혀 들어갈 수 있습니다. 자극기간 10 ms 의 실제 과정:</p>
+            <table>
+              <tr><th>시험 전류 (nA)</th><th>결과</th><th>남은 구간</th></tr>
+              <tr><td>0.05</td><td class="no">×</td><td>—</td></tr>
+              <tr><td>0.10</td><td class="no">×</td><td>—</td></tr>
+              <tr><td>0.20</td><td class="ok">○</td><td>0 ~ 0.20</td></tr>
+              <tr><td>0.150</td><td class="no">×</td><td>0.15 ~ 0.20</td></tr>
+              <tr><td>0.175</td><td class="ok">○</td><td>0.15 ~ 0.175</td></tr>
+              <tr><td>0.1625</td><td class="no">×</td><td>0.1625 ~ 0.175</td></tr>
+              <tr><td colspan="3">… 18 회 반복 …</td></tr>
+              <tr><td><b>0.1743</b></td><td class="ok">○</td><td><b>← 역치</b></td></tr>
+            </table>
+            <p>구간이 매번 절반이 되므로 18 회면 처음 폭의 <code>1/262144</code> 로 좁혀집니다.
+            이를 자극기간마다 반복하므로 <b>한 번 누르면 150 회쯤 시뮬레이션</b>이 돌아갑니다.</p>
+
+            <h4>③ Ir — “더 길게 줘도 안 내려가는 값”</h4>
+            <p>정의가 <i>아무리 자극기간을 늘려도 활동전압이 생기지 않는 최대전류</i> 이므로
+            <b>가장 긴 자극기간의 역치</b>를 씁니다. 기본 설정에서 50 ms 는 0.0860,
+            100 ms 는 0.0850 nA 로 <b>두 배 늘렸는데 1.2 % 밖에 안 내려갑니다</b> —
+            이미 평평해졌다는 뜻입니다. 그래프의 <b style="color:#b45309">주황 수평 점선</b>
+            이 이 값입니다.</p>
+
+            <h4>④ C — 이번엔 ‘시간’을 반씩 좁히기</h4>
+            <p>정의가 <i>Ir 의 두 배를 주었을 때 활동전압을 발생시키는 최소 자극기간</i> 이므로,
+            전류를 <b>2 Ir</b> 로 고정해 놓고 <b>자극기간</b>을 같은 방식으로 좁힙니다
+            (22 회). 그래프의 <b style="color:#0f8a5f">초록 세로선</b>이 결과이고,
+            곡선이 2 Ir 선과 만나는 바로 그 점이라 <b>눈으로 읽는 위치와 계산이 일치</b>합니다.</p>
+
+            <h4>⑤ 왜 식으로 맞추지 않나</h4>
+            <p><code>I = Ir(1+C/t)</code> 최소자승은 R² 가 0.9995 로 잘 맞는데도
+            Ir 이 0.0517 nA 로 나옵니다. 데이터는 0.085 에서 평평한데 말이죠.
+            그 식이 <b>단순한 RC 막</b>을 가정하기 때문에 짧은 자극 쪽 점들이 직선을 끌어당겨
+            절편을 낮게 찍습니다. 그래서 <b>정의대로 잰 값을 앞에 두고</b> 식 맞춤은
+            연한 회색 선으로 비교만 합니다.</p>
+
+            <div class="warn">
+              <b>이 계산들은 위의 전류·막전위 그래프에 그려지지 않습니다.</b>
+              화면에 그리지 않고 따로 돌리기 때문입니다(그리면 150 개가 겹칩니다).
+              위 그래프는 마지막으로 <b>[실행]</b> 한 결과 그대로입니다.
+              특정 조건을 눈으로 보려면 <b>아래 표의 행을 클릭</b> → <b>[새 세포]</b> →
+              <b>[실행]</b> 하세요.
+            </div>
+          </div>
+        </details>
+
+        <div class="sdwrap"><canvas id="sdCanvas"></canvas></div>
+        <div class="sdres" id="sdRes"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>IK 활성화 시간상수 τ — 56 % 도달시간 (II-4 · II-5)
+        <span class="spacer"></span>
+        <select id="tauPlot" style="height:22px;font-size:11.5px">
+          <option value="tau">그래프 : τ</option>
+          <option value="ab">그래프 : α_n · β_n</option>
+        </select>
+        <button class="small" id="btnTauRun">자동 측정</button>
+        <button class="small" id="btnTauCsv">CSV 저장</button>
+        <button class="small" id="btnTauHide">닫기</button>
+      </h2>
+      <div id="tauBox" hidden>
+        <div class="sdctl">
+          <span>지령전위는 현재 펄스 프로토콜(에피소드 수·증분)에서 가져옵니다.</span>
+          <span class="sdmsg" id="tauMsg"></span>
+        </div>
+
+        <details class="how">
+          <summary>어떻게 재나요? — 자동 측정 절차</summary>
+          <div class="howbody">
+            <p>지령전위마다 전압고정 에피소드를 <b>화면 없이 한 번씩</b> 돌려 IKdr 의
+            시간경과를 기록한 뒤, 아래 순서로 읽습니다.</p>
+            <p>① <b>full 값</b> = 펄스 2 가 끝나는 시점의 전류.
+            마지막 25 % 구간에서 0.5 % 미만으로만 변하면 정상상태로 봅니다.
+            아니면 <b>펄스 2 를 두 배로 늘려 다시</b> 돌립니다(최대 600 ms) —
+            매뉴얼이 −60 mV 에 대해 적어 둔 주의사항이 자동으로 처리됩니다.<br>
+            ② 전류가 full 값의 <b>56 %</b> 에 닿는 시각을 선형보간으로 찾습니다.
+            시간은 <b>펄스 2 가 시작되는 순간부터</b> 재므로 holding length 는 빠집니다.<br>
+            ③ <code>τ = t56 / 2</code>. 분해능을 위해 <code>dt = 0.02 ms</code> 로 고정해 계산합니다.</p>
+            <p>n∞ 는 활성화 곡선에서 <code>G = Iss/(V−EK)</code>, <code>n∞ = (G/G<sub>max</sub>)^(1/4)</code>
+            로 구하고, 여기서 <code>α_n = n∞/τ</code>, <code>β_n = (1−n∞)/τ</code> 가 바로 나옵니다(II-5).</p>
+            <div class="warn">
+              <b>이 계산들도 위의 전류·막전위 그래프에는 그려지지 않습니다.</b>
+              위 그래프는 마지막으로 <b>[실행]</b> 한 결과 그대로입니다.
+            </div>
+          </div>
+        </details>
+
+        <div class="sdwrap"><canvas id="tauCanvas"></canvas></div>
+        <div class="sdres" id="tauRes"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>활동전압 재구성 — α·β 만으로 (II-6)
+        <span class="spacer"></span>
+        <button class="small" id="btnReconRun">재구성 실행</button>
+        <button class="small" id="btnReconCsv">CSV 저장</button>
+        <button class="small" id="btnReconHide">닫기</button>
+      </h2>
+      <div id="reconBox" hidden>
+        <div class="sdctl">
+          <span>자극 세기</span><input type="number" id="rcAmp" step="any" value="0.25"> nA
+          <span>시작</span><input type="number" id="rcT0" step="any" value="10"> ms
+          <span>폭</span><input type="number" id="rcDur" step="any" value="10"> ms
+          <span>총 시간</span><input type="number" id="rcT" step="any" value="60"> ms
+          <label style="display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="rcMeasured"> n 의 α·β 를 II-4 측정값으로
+          </label>
+          <span class="sdmsg" id="rcMsg"></span>
+        </div>
+
+        <details class="how">
+          <summary>어떻게 계산하나요? — 재구성 절차</summary>
+          <div class="howbody">
+            <p>① 먼저 <b>모델(HH 모드)</b>로 같은 자극을 한 번 돌려 기준 파형을 얻습니다.<br>
+            ② 그 <b>출발 막전압</b>에서 재구성을 시작합니다. 모델의 <code>calculatevm()</code> 은
+            <code>|Itot| &lt; 0.02 nA</code> 에서 멈춰 참 평형보다 몇 mV 떨어져 있으므로,
+            같은 지점에서 출발해야 공정한 비교가 됩니다.<br>
+            ③ 아래 세 식만으로 <code>dt = 0.01 ms</code> 씩 적분합니다. 게이트는 지수해,
+            막전압은 Euler — 원본 <code>CalSteps</code> 와 같은 방식입니다.</p>
+            <p>이 패널의 계산은 <b><code>js/reconstruct.js</code> 안에서만</b> 이뤄지며
+            시뮬레이션 엔진(<code>HeartModel</code>)을 전혀 호출하지 않습니다.
+            그래야 “α·β 만 있으면 된다” 가 코드로도 증명됩니다.</p>
+            <div class="warn">
+              <b>여기 두 그래프는 이 패널 전용입니다.</b> 위쪽 전류·막전위 그래프와는
+              별개이며, 그쪽은 마지막으로 <b>[실행]</b> 한 결과 그대로입니다.
+            </div>
+          </div>
+        </details>
+
+        <div class="sdwrap"><canvas id="rcCanvasV"></canvas></div>
+        <div class="sdwrap" style="padding-top:0"><canvas id="rcCanvasG"></canvas></div>
+        <div class="sdres" id="rcRes"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>프로토콜 / 세포</h2>
+      <div class="opts">
+        <div class="field">
+          <span class="cap">실습 항목</span>
+          <select id="selManual"></select>
+        </div>
+        <div class="field">
+          <span class="cap">펄스 프로토콜 (.prm)</span>
+          <select id="selPrm"></select>
+        </div>
+        <div class="field">
+          <span class="cap">채널 세트 (.sfs)</span>
+          <select id="selSfs"></select>
+        </div>
+        <div class="field">
+          <span class="cap">파일 불러오기 (.prm .sfs .ion .con)</span>
+          <input type="file" id="fileInput" accept=".prm,.sfs,.ion,.con">
+        </div>
+      </div>
+      <div class="note">
+        “실습 항목”을 고르면 그 실험에 필요한 자극 프로토콜·채널 설정·모드·표시범위·
+        전류 선택이 한 번에 맞춰집니다. .prm 만 고르면 같은 이름의 .sfs 가 있을 경우
+        함께 적용됩니다. <code>.prm .sfs .ion .con</code> 파일을 직접 불러올 수도 있습니다.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tabbtn active" data-pane="pulsePane">펄스</button>
+        <button class="tabbtn" data-pane="sfPane">채널 배율</button>
+        <button class="tabbtn" data-pane="ionPane">이온</button>
+        <button class="tabbtn" data-pane="conPane">실험조건</button>
+      </div>
+      <div class="tabpane active" id="pulsePane">
+        <div class="ppv">
+          <canvas id="pulsePreview"></canvas>
+          <div class="cap" id="pulseCap"></div>
+        </div>
+        <div id="pulseFields"></div>
+      </div>
+      <div class="tabpane" id="sfPane"></div>
+      <div class="tabpane" id="ionPane"></div>
+      <div class="tabpane" id="conPane"></div>
+    </div>
+
+    <div class="card">
+      <h2>표시할 전류</h2>
+      <div class="opts" id="channelList"></div>
+      <div class="btnrow">
+        <button class="small" id="btnCheckAll">모두 선택</button>
+        <button class="small" id="btnCheckNone">모두 해제</button>
+      </div>
+      <hr class="sep">
+      <div class="opts">
+        <label><input type="checkbox" id="chkItot"> 총 전류 (Itot)</label>
+        <label><input type="checkbox" id="chkCap"> 용량성 전류 포함 (VC)</label>
+        <label><input type="checkbox" id="chkHH"> HH 모델 전용 계산 (매뉴얼: 해제 상태로 실험)</label>
+        <label><input type="checkbox" id="chkG"> gNa · gK (전도도) 표시</label>
+        <label><input type="checkbox" id="chkNMH"> m · h · n (게이트) 표시
+          <span style="font-size:11px;color:var(--muted)">
+            <span style="color:#ff0000">■</span>m
+            <span style="color:#008080">■</span>h
+            <span style="color:#0000ff">■</span>n
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>계산 / 기록</h2>
+      <div class="opts">
+        <div class="field row">
+          <span class="cap">고정 시간간격 dt (ms · 0 = 자동)</span>
+          <input type="number" id="fixedDt" step="any" value="0">
+        </div>
+
+        <label><input type="checkbox" id="chkAutoScale" checked> 실행 후 자동 스케일</label>
+        <label><input type="checkbox" id="chkOverlap" checked> 에피소드 겹쳐 그리기 (Overlap)</label>
+        <label><input type="checkbox" id="chkEpColor" checked> 에피소드별 명암 구분
+          <span class="eplegend"><span class="bar" id="epLegend"></span></span>
+        </label>
+        <label><input type="checkbox" id="chkRecord" checked> 데이터 기록</label>
+        <label><input type="checkbox" id="chkFast"> 빠른 계산 (애니메이션 없음)</label>
+
+        <div class="group">
+          <div class="gtitle">모델 동작 · 고급</div>
+          <div class="field">
+            <span class="cap">HH 구동력</span>
+            <select id="selDrive">
+              <option value="ohmic" selected>옴형 — Vm − E (HH 원논문)</option>
+              <option value="cf">정전장 — GHK (농도 비대칭 반영)</option>
+            </select>
+          </div>
+          <div class="note2" id="driveNote"></div>
+          <div class="field">
+            <span class="cap">자극전류 부호</span>
+            <select id="selSign">
+              <option value="-1" selected>(+) = 내향 · 탈분극 (기준)</option>
+              <option value="1">(+) = 외향 · 과분극</option>
+            </select>
+          </div>
+          <div class="note2">
+            기본값이 실습 기준입니다. 페이지를 새로 열면 기준값으로 되돌아갑니다.
+          </div>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="small" id="btnSaveData">데이터 저장 (.txt)</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span id="status">준비됨</span>
+  <span id="ionReadout"></span>
+</footer>
+
+<script>
+/* ==== js/params.js ==== */
+// Auto-generated from "01_서울대 HH model 학생실습/param" -- do not edit by hand.
+// PRM: Pulse[0..18], SFS: file order -> SF[3..14] then SF[19..23]
+var PARAMS = {
+ "PRM": {
+  "APthreshold": [
+   0.0,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   -0.2,
+   -0.2,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   80.0,
+   0.05,
+   0.0,
+   10.0,
+   0.0,
+   1.0,
+   0.1
+  ],
+  "Accommodation": [
+   0.0,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   100.0,
+   0.4,
+   0.4,
+   4.0,
+   0.0,
+   50.0,
+   0.1,
+   0.0,
+   2.0,
+   2.0,
+   1.0,
+   0.17
+  ],
+  "AnodalBreak": [
+   0.0,
+   50.0,
+   0.0,
+   0.0,
+   0.0,
+   -0.2,
+   -0.2,
+   50.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   50.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   0.7,
+   1.0
+  ],
+  "RefractoryPeriod": [
+   0.0,
+   10.0,
+   0.6,
+   0.6,
+   3.0,
+   0.0,
+   0.0,
+   5.0,
+   0.6,
+   0.6,
+   3.0,
+   0.0,
+   50.0,
+   0.0,
+   4.0,
+   15.0,
+   0.0,
+   1.0,
+   0.15
+  ],
+  "VCstep4IK": [
+   -80.0,
+   2.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -60.0,
+   -60.0,
+   20.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -80.0,
+   5.0,
+   10.0,
+   0.0,
+   11.0,
+   2.0,
+   1.0,
+   0.018
+  ],
+  "VCstep4INa": [
+   -110.0,
+   2.0,
+   -110.0,
+   -110.0,
+   0.0,
+   -80.0,
+   -80.0,
+   8.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -110.0,
+   4.0,
+   10.0,
+   0.0,
+   17.0,
+   1.0,
+   1.0,
+   0.014
+  ],
+  "VCstep4INa1": [
+   -110.0,
+   2.0,
+   -110.0,
+   -110.0,
+   0.0,
+   -70.0,
+   -70.0,
+   8.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -110.0,
+   4.0,
+   10.0,
+   0.0,
+   9.0,
+   1.0,
+   1.0,
+   0.014
+  ],
+  "VCstep4INa2": [
+   -110.0,
+   2.0,
+   -110.0,
+   -110.0,
+   0.0,
+   20.0,
+   20.0,
+   8.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -110.0,
+   4.0,
+   10.0,
+   0.0,
+   9.0,
+   1.0,
+   1.0,
+   0.014
+  ],
+  "VCstep4Inactivation": [
+   -80.0,
+   10.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -110.0,
+   -110.0,
+   30.0,
+   0.0,
+   0.0,
+   10.0,
+   -80.0,
+   20.0,
+   10.0,
+   0.0,
+   10.0,
+   1.0,
+   1.0,
+   0.09
+  ],
+  "default": [
+   0.0,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   0.2,
+   0.2,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   80.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   1.0,
+   0.1
+  ],
+  "passive": [
+   0.0,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   -0.2,
+   -0.2,
+   100.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   120.0,
+   0.05,
+   0.0,
+   9.0,
+   0.0,
+   1.0,
+   0.23
+  ],
+  "prepulse": [
+   -80.0,
+   10.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -40.0,
+   -40.0,
+   30.0,
+   0.0,
+   0.0,
+   10.0,
+   -80.0,
+   20.0,
+   0.0,
+   0.0,
+   1.0,
+   1.0,
+   1.0,
+   0.08
+  ],
+  "rheobase": [
+   0.0,
+   10.0,
+   0.0,
+   0.0,
+   0.0,
+   0.05,
+   0.05,
+   50.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   80.0,
+   0.01,
+   0.0,
+   5.0,
+   0.0,
+   1.0,
+   0.14
+  ],
+  "test": [
+   -80.0,
+   2.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -45.0,
+   -45.0,
+   12.0,
+   -80.0,
+   -80.0,
+   0.0,
+   -80.0,
+   2.0,
+   10.0,
+   0.0,
+   1.0,
+   2.0,
+   1.0,
+   0.018
+  ]
+ },
+ "SFS": {
+  "Accommodation": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   3.0,
+   15.0,
+   0.0,
+   2.0,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "AnodalBreak": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   3.0,
+   5.0,
+   0.0,
+   2.2,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "Passive": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   10.0,
+   2.0,
+   2.0,
+   0.0,
+   3.0,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "PulseProtocol": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   100.0
+  ],
+  "RefractoryPeriod": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   10.0,
+   2.0,
+   2.0,
+   0.0,
+   3.0,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "atrium": [
+   0.2,
+   0.5,
+   1.0,
+   1.0,
+   0.5,
+   0.1,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.2,
+   1.0,
+   0.1,
+   0.2,
+   0.5
+  ],
+  "default": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   10.0,
+   3.0,
+   2.0,
+   0.0,
+   3.0,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "large": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   3.0,
+   5.0,
+   0.0,
+   3.0,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "sanode": [
+   0.03,
+   0.05,
+   1.5,
+   1.5,
+   0.0,
+   1.0,
+   0.3,
+   0.3,
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.3,
+   1.7,
+   0.3,
+   0.3,
+   0.3
+  ],
+  "small": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.8,
+   1.5,
+   0.0,
+   0.02,
+   0.0,
+   0.0,
+   1.0
+  ],
+  "ventricle": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ]
+ },
+ "ION": [
+  140.0,
+  5.4,
+  5.4,
+  140.0,
+  1.8,
+  0.0035,
+  1.0
+ ],
+ "CON": [
+  0.1,
+  100000.0,
+  1000.0,
+  36.0
+ ],
+ "COLORS": [
+  "#ffffff",
+  "#ff0000",
+  "#00ff00",
+  "#0000ff",
+  "#008080",
+  "#808000",
+  "#ff00ff",
+  "#800000",
+  "#008000",
+  "#000000",
+  "#ff0000",
+  "#408000",
+  "#808000",
+  "#ff0000",
+  "#0000ff",
+  "#ff0020",
+  "#808080",
+  "#008000",
+  "#ffffff",
+  "#800080",
+  "#008080",
+  "#8080ff",
+  "#ff8080",
+  "#00c837",
+  "#d4ffd4",
+  "#00405c",
+  "#c00000",
+  "#000000"
+ ],
+ "PRM_NAMES": [
+  "Holding Potential (mV)",
+  "Holding Length (ms)",
+  "Pulse 1 start",
+  "Pulse 1 final",
+  "Pulse 1 lenght",
+  "Pulse 2 start",
+  "Pulse 2 final",
+  "Pulse 2 length",
+  "Pulse 3 start",
+  "Pulse 3 final",
+  "Pulse 3 length",
+  "Return Potential",
+  "Return Length",
+  "Step Increment of Pulse 2 (mV)",
+  "Duration Increment of Pulse 2 (ms)",
+  "Episode Number",
+  "Episode Interval",
+  "Stimulus Number",
+  "Stimulus Interval"
+ ],
+ "SFS_NAMES": [
+  "Inward Rectifier K",
+  "Na channel",
+  "Rapid Delayed Rectifier",
+  "Transient Outward K channel",
+  "sustained outward K channel",
+  "L-type Ca channel",
+  "T-type Ca channel",
+  "Slow Delayed Rectifier",
+  "Hyperpolarising Activated",
+  "GirK",
+  "Na current (HH)",
+  "K current (HH)",
+  "Background Ca current",
+  "Nonselective Cation Channel",
+  "Na-Ca exchanger",
+  "Na-K pump",
+  "Cell Capacitance Factor"
+ ],
+ "ION_NAMES": [
+  "extracellular Na",
+  "intracellular Na",
+  "extracellular K",
+  "intracellular K",
+  "extracellular Ca",
+  "cytosol total Ca",
+  "intracellular Mg"
+ ],
+ "CON_NAMES": [
+  "Access Resistance (MOhm)",
+  "Seal Resistance (MOhm)",
+  "Volume(glass) / Volume(cell)",
+  "Temperature"
+ ]
+};
+
+</script>
+<script>
+/* ==== js/model.js ==== */
+/* ------------------------------------------------------------------
+ * model.js -- JavaScript port of Heart_HH (heart10Doc.cpp)
+ *
+ * Direct translation of CHeart10Doc.  Variable names, array indices and
+ * the order of operations follow the original C++ so that the numerical
+ * results match the Windows program.
+ *
+ *   Pulse[0..18]     pulse protocol              (see heart10Doc.h)
+ *   SF[3..14,19..23] scale factors
+ *   Ion[0..6]        0:Nae 1:Nai 2:Ke 3:Ki 4:Cae 5:Cat 6:Mgi
+ *   Condition[0..3]  0:Raccess 1:Rseal 2:Vglass/Vcell 3:temperature
+ *   m_AP             0 = current clamp (action potential), 1 = voltage clamp
+ * ------------------------------------------------------------------ */
+(function (global) {
+'use strict';
+
+var R = 8.3143;                 // Joule/K/mole
+var F = 96.4867;                // Coulomb/mM
+var Elementarycharge = 1.602e-19;
+var NOP = 14;                   // number of channel parameter sets
+
+var exp = Math.exp, log = Math.log, pow = Math.pow, abs = Math.abs;
+
+function dim2(a, b) {
+    var A = new Array(a), i, j;
+    for (i = 0; i < a; i++) { A[i] = new Array(b); for (j = 0; j < b; j++) A[i][j] = 0; }
+    return A;
+}
+function dim3(a, b, c) {
+    var A = new Array(a), i, j, k;
+    for (i = 0; i < a; i++) {
+        A[i] = new Array(b);
+        for (j = 0; j < b; j++) { A[i][j] = new Array(c); for (k = 0; k < c; k++) A[i][j][k] = 0; }
+    }
+    return A;
+}
+function zeros(n) { var A = new Array(n), i; for (i = 0; i < n; i++) A[i] = 0; return A; }
+
+function HeartModel() {
+    this.Pulse     = zeros(19);
+    this.SF        = zeros(25);
+    this.Ion       = zeros(10);
+    this.Condition = zeros(4);
+
+    this.C   = dim3(7, 8, 3);       // concentrations; C[6] = membrane potential
+    this.Org = dim3(3, 8, 3);       // organelle variables
+    this.m   = dim3(NOP + 1, 10, 3);
+    this.mm  = dim3(NOP + 1, 10, 3);
+    this.h   = dim3(NOP + 1, 10, 3);
+    this.hh  = dim3(NOP + 1, 10, 3);
+    this.ii  = dim3(25, 6, 3);      // currents
+
+    this.RateM  = dim2(NOP + 1, 7);
+    this.RateMM = dim2(NOP + 1, 7);
+    this.RateH  = dim2(NOP + 1, 7);
+    this.RateHH = dim2(NOP + 1, 7);
+
+    this.Vm = zeros(3); this.VNa = zeros(3); this.VK = zeros(3); this.VCa = zeros(3);
+    this.Caf = zeros(3); this.Cafb = zeros(3); this.Cafrel = zeros(3);
+    this.TRPNf = zeros(3); this.CMDNf = zeros(3); this.CSQNf = zeros(3);
+    this.KCF = zeros(3); this.NaCF = zeros(3); this.CaCF = zeros(3);
+    this.Itot = zeros(3); this.Itotb = zeros(3); this.Itot_vm = zeros(3);
+    this.Icap = zeros(3); this.Icapb = zeros(3);
+    this.Iinj = zeros(3);
+    this.ICanet = zeros(3); this.IKnet = zeros(3); this.INanet = zeros(3);
+    this.Itr = zeros(3); this.Irel = zeros(3); this.Iup = zeros(3);
+    this.K30 = zeros(3); this.K03 = zeros(3);
+    this.d = zeros(3);
+
+    this.GbCa = zeros(3); this.GILNSCNa = zeros(3); this.GNa = zeros(3);
+    this.GITOK = zeros(3); this.GIsusK = zeros(3); this.GIRK1 = zeros(3);
+    this.GKr = zeros(3); this.GIKsK = zeros(3); this.GNaHH = zeros(3); this.GIKdr = zeros(3);
+    this.GfK = zeros(3); this.GfNa = zeros(3); this.ACh = zeros(3);
+    this.INaKmax = zeros(3); this.INaCaMax = zeros(3);
+    this.PCaL = zeros(3); this.PCaT = zeros(3);
+
+    this.cellNo = 1;
+    this.NewCell = true;
+    this.bUserRate = false;
+    this.bHH = true;
+    /* false = ohmic (Vm-E) driving force, as in heart10Doc.cpp (2013)
+       true  = constant-field NaCF/KCF, as in heart10Doc_HH.cpp (2008)   */
+    this.bConstantField = false;
+    /* +1 = literal source behaviour, -1 = positive pulse depolarises */
+    this.stimSign = 1;
+    this.m_AP = 0;
+    this.m_FixedTimeInterval = 0;
+    this.limitfactor = 0;
+    this.iterative = 200;
+    this.episodeN = 0;
+    this.CurrentTime = 0;
+    this.TotalTime = 0;
+    this.timeinterval = 0.01;
+    this.timeintervalb = 0.01;
+    this.E = 0; this.E0 = 0; this.Erev = -67;
+    this.vmSolveIterations = 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* initialisation                                                     */
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.InputAll = function () {
+    this.d[1] = 1; this.d[2] = 0;
+    this.limitfactor = 0;
+};
+
+HeartModel.prototype.DefInitialVarInput = function () {
+    for (var L = 1; L <= this.cellNo; L++) {
+        this.C[1][6][L] = this.Ion[3];
+        this.C[2][6][L] = this.Ion[1];
+        this.C[3][6][L] = this.Ion[5];
+        this.C[1][7][L] = this.C[1][6][L];
+        this.C[2][7][L] = this.C[2][6][L];
+        this.C[3][7][L] = this.C[3][6][L];
+    }
+};
+
+HeartModel.prototype.DefIonVar = function () {
+    this.Ke  = this.Ion[2];
+    this.Nae = this.Ion[0];
+    this.Cae = this.Ion[4];
+    this.Mgi = this.Ion[6];
+};
+
+HeartModel.prototype.DefScaleVar = function () {
+    var SF = this.SF;
+    this.Cap = SF[23] * 132.0 / 1000.0;                       // nF
+    this.Vi = 100.0 * 20.0 * 8.0 / 2.0 * 0.001;               // um^3
+    this.Vtotal = this.Condition[2] * this.Vi;
+
+    this.GIRK1[1]  = SF[3]  * 0.8 * 1800.0 / 20.0 / 1000.0 * SF[23];
+    this.GNa[1]    = SF[4]  * 1.875 * 58.0 / 1000.0 * SF[23];
+    this.GKr[1]    = SF[5]  * 0.132 * 0.108 * 0.3 * SF[23];
+    this.GITOK[1]  = SF[6]  * 1.5 / 1000 * SF[23];
+    this.GIsusK[1] = SF[7]  * 0.3 / 1000 * SF[23];
+    this.PCaL[1]   = SF[8]  * 24 * 40 / 1000 * SF[23];
+    this.PCaT[1]   = SF[9]  * 0.066 / 0.05 * SF[23];
+    this.GIKsK[1]  = SF[10] * 0.247 * 2.5 / 2 / 1000 * SF[23];
+
+    this.GfK[1]  = SF[11] * 7.4 / 1000 * SF[23];
+    this.GfNa[1] = SF[11] * 4.6 / 1000 * SF[23];
+    this.ACh[1]  = SF[12] * SF[23];
+    this.GNaHH[1] = SF[13] * 200 / 1000.0 * SF[23];
+    this.GIKdr[1] = SF[14] * 60 / 1000.0 * SF[23];
+
+    this.GbCa[1]     = SF[19] * 0.01 * 275 / 1000 * SF[23];
+    this.GILNSCNa[1] = SF[20] * 0.0561 * 1.5 / 1000 * SF[23];
+    this.BasalRate = 250.0;
+    this.NumberofCareer = 0.132 * 100.0 * 2000.0 * 4.0 * SF[23];
+
+    this.INaCaMax[1] = SF[21] * this.NumberofCareer * Elementarycharge * 1e12 * this.BasalRate;
+    this.INaKmax[1]  = SF[22] * 0.132 * 2.88 * 1.3 * SF[23];
+};
+
+HeartModel.prototype.INITIALSETTING = function () {
+    this.timeinterval = 0.01;
+    this.timeintervalb = 0.01;
+    this.CurrentTime = 0.0;
+
+    this.E = this.Pulse[0];
+
+    this.RTF  = R * (this.Condition[3] + 273.15) / F;
+    this.RTF2 = R * (this.Condition[3] + 273.15) / F / 2.0;
+    if (!this.bHH) {
+        this.Erev = this.RTF * log(
+            (this.Ke + this.Nae * 0.002 + this.Cae * 4 * 0.002) /
+            (this.C[1][6][1] + this.C[2][6][1] * 0.005 + this.C[3][6][1] * 4 * 0.005));
+    } else {
+        this.Erev = -67;
+    }
+
+    this.rNaCa = 0.5;
+    this.dNaCa = 0.0001;
+    this.KmTRPN = 0.5 * 0.001;
+    this.KmCMDN = 2.38 * 0.001;
+    this.TRPNt = 0.07 * 0.7;
+    this.CMDNt = 0.05 * 0.7;
+    this.TRPNf[1] = this.TRPNt; this.CMDNf[1] = this.CMDNt;
+    this.TRPNf[2] = this.TRPNt; this.CMDNf[2] = this.CMDNt;
+
+    this.KmCSQN = 0.8;
+    this.CSQNt = 10.0;
+
+    this.Vrel = 0.004 * this.Vi;
+    this.Vup  = 0.06 * this.Vi * 3.0;
+
+    this.Caupmax = 5.0;
+    this.Taurel = 1.0;
+    this.Tautr = 200.0 * 11.0;
+    this.TauUp = 0.05;
+    this.KmCa = 0.001;
+
+    this.Arel = 2.0 * this.Vrel * F / this.Taurel;
+    this.Atr  = 2.0 * this.Vi * F / this.Tautr;
+    this.Aup  = 2.0 * this.Vi * F / this.TauUp;
+
+    this.RGKNA = 0.086;
+    this.RGITONa = 0.09;
+    this.RGIsusNa = 0.09;
+    this.RGIKsNa = 0.04;
+    this.RGILNSCK = 1.4;
+    this.KmNa = 11.0;
+
+    this.KNaCa = 0.012;
+    this.Partition_v = 0.32;
+
+    this.KNAI = pow(87.5, 3.0) * 0.0036;
+    this.KNAO = pow(87.5, 3.0);
+    this.KCaI = 1.38 * 0.0036;
+    this.KCaO = 1.38;
+
+    this.PCaLK = 0.002;
+    this.PCaLNa = 0.0001;
+
+    for (var L = 1; L <= this.cellNo; L++) {
+        this.VNa[L] = this.RTF * log(this.Nae / this.C[2][6][L]);
+        this.VK[L]  = this.RTF * log(this.Ke / this.C[1][6][L]);
+        this.VCa[L] = this.RTF2 * log(this.Cae / 1e-4);
+    }
+};
+
+HeartModel.prototype.DefInitialVarPreset = function () {
+    for (var L = 1; L <= this.cellNo; L++) {
+        this.Org[1][6][L] = 0.9459136;
+        this.Org[2][6][L] = 0.996709;
+        this.C[4][6][L] = 4.608456;
+        this.C[5][6][L] = 13.11168;
+        this.C[4][7][L] = this.C[4][6][L];
+        this.C[5][7][L] = this.C[5][6][L];
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* resting / holding membrane potential                               */
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.calculatevm = function () {
+    var L, N, qr, guard = 0;
+    for (L = 1; L <= this.cellNo; L++) {
+        if (this.m_AP === 0) { this.Vm[L] = this.Erev; this.iterative = 200; }
+        else                 { this.Vm[L] = this.Pulse[0]; this.iterative = 40; }
+    }
+    qr = 0;
+
+    do {
+        for (L = 1; L <= this.cellNo; L++) {
+            if (abs(this.d[L]) > this.limitfactor) {
+                this.Vm[L] = this.Vm[L] + pow(-1.0, qr) * 0.0005 * qr * this.iterative;
+            }
+        }
+
+        this.CABUFFER();
+
+        for (L = 1; L <= this.cellNo; L++) {
+            this.VNa[L] = this.RTF * log(this.Nae / this.C[2][6][L]);
+            this.VK[L]  = this.RTF * log(this.Ke / this.C[1][6][L]);
+            this.VCa[L] = this.RTF2 * log(this.Cae / this.Caf[L]);
+        }
+
+        this.constantfield_noma();
+        this.RateConstants();
+
+        for (L = 1; L <= this.cellNo; L++) {
+            for (N = 3; N <= NOP; N++) {
+                this.m[N][6][L] = this.m[N][1][L] / (this.m[N][1][L] + this.m[N][2][L]);
+                this.m[N][7][L] = this.m[N][6][L];
+                this.h[N][6][L] = this.h[N][1][L] / (this.h[N][1][L] + this.h[N][2][L]);
+                this.h[N][7][L] = this.h[N][6][L];
+            }
+            for (N = 1; N <= 2; N++) {
+                this.Org[N][6][L] = this.Org[N][1][L] / (this.Org[N][1][L] + this.Org[N][2][L]);
+                this.Org[N][7][L] = this.Org[N][6][L];
+            }
+            this.mm[5][6][L] = this.mm[5][1][L] / (this.mm[5][1][L] + this.mm[5][2][L]);
+            this.mm[5][7][L] = this.mm[5][6][L];
+            this.hh[4][6][L] = this.hh[4][1][L] / (this.hh[4][1][L] + this.hh[4][2][L]);
+            this.hh[4][7][L] = this.hh[4][6][L];
+            this.m[3][6][L] = this.m[3][1][L] /
+                (this.m[3][1][L] + this.m[3][2][L] * pow(1 - this.h[3][3][L], 3.0));
+            this.m[3][7][L] = this.m[3][6][L];
+        }
+        this.DefSteps(0);
+        this.currentamplitude();
+
+        for (L = 1; L <= this.cellNo; L++) {
+            if (abs(this.d[L]) > this.limitfactor) {
+                this.Itot_vm[L] = this.Itot_vm[L] + this.Vm[L] / this.Condition[1];
+            }
+            if (this.m_AP === 0) {
+                this.d[1] = this.Itot_vm[1];
+                this.limitfactor = 0.02;
+            } else {
+                this.d[1] = this.Pulse[0] - this.Vm[1] - this.Itot_vm[1] * this.Condition[0];
+                this.limitfactor = 0.1;
+            }
+        }
+        qr = qr + 1;
+        guard++;
+    } while (!(abs(this.d[1]) < this.limitfactor) && guard < 200000);
+    this.vmSolveIterations = guard;
+
+    for (L = 1; L <= this.cellNo; L++) {
+        for (N = 3; N <= NOP; N++) {
+            this.m[N][7][L] = this.m[N][6][L];
+            this.h[N][7][L] = this.h[N][6][L];
+        }
+        this.mm[5][7][L] = this.mm[5][6][L];
+        this.hh[4][7][L] = this.hh[4][6][L];
+        for (N = 1; N <= 2; N++) this.Org[N][7][L] = this.Org[N][6][L];
+        this.C[6][7][L] = this.Vm[L];
+        this.C[6][6][L] = this.C[6][7][L];
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* one integration step                                               */
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.CalSteps = function () {
+    var L;
+    if (this.bHH) {
+        /* Vm -> alpha,beta,m -> Itot -> dV/dt -> new Vm */
+        this.MemoryCurrent();
+        this.CABUFFER();
+        this.VNa[1] = this.RTF * log(this.Nae / this.C[2][6][1]);
+        this.VK[1]  = this.RTF * log(this.Ke / this.C[1][6][1]);
+        this.VCa[1] = this.RTF2 * log(this.Cae / this.Caf[1]);
+
+        this.RateConstants();
+
+        this.constantfield_noma();
+        this.DefSteps(this.m_AP);
+        this.currentamplitude();
+
+        this.differen();
+
+        var dmdt = this.m[13][5][1], dhdt = this.h[13][5][1], dndt = this.m[14][5][1];
+        var taum = 1 / (this.m[13][1][1] + this.m[13][2][1]);
+        var tauh = 1 / (this.h[13][1][1] + this.h[13][2][1]);
+        var taun = 1 / (this.m[14][1][1] + this.m[14][2][1]);
+
+        /* m(dt) = minf + (m0 - minf)*exp(-dt/tau) */
+        this.m[13][6][1] += dmdt * taum * (1 - exp(-this.timeinterval / taum));
+        this.h[13][6][1] += dhdt * tauh * (1 - exp(-this.timeinterval / tauh));
+        this.m[14][6][1] += dndt * taun * (1 - exp(-this.timeinterval / taun));
+
+        if (this.m_AP === 0) {
+            this.C[6][5][1] = -1.0 / this.Cap * this.Itot[1];
+        } else {
+            this.C[6][5][1] = 1.0 / this.Cap *
+                ((this.E - this.C[6][6][1]) / this.Condition[0] - this.Itot[1] + this.Icap[1]);
+        }
+
+        if (this.m_AP === 1) {
+            this.C[6][7][1] = this.C[6][6][1];
+            this.C[6][6][1] = this.C[6][7][1] + this.C[6][5][1] * this.Condition[0] * this.Cap *
+                (1.0 - exp(-(this.timeinterval) / this.Condition[0] / this.Cap));
+        } else {
+            this.C[6][7][1] = this.C[6][6][1];
+            this.C[6][6][1] = this.C[6][7][1] + this.C[6][5][1] * this.timeinterval;
+        }
+        this.Vm[1] = this.C[6][6][1];
+        this.CurrentTime += this.timeinterval;
+    } else {
+        this.MemoryCurrent();
+        this.CABUFFER();
+        for (L = 1; L <= this.cellNo; L++) {
+            this.VNa[L] = this.RTF * log(this.Nae / this.C[2][6][L]);
+            this.VK[L]  = this.RTF * log(this.Ke / this.C[1][6][L]);
+            this.VCa[L] = this.RTF2 * log(this.Cae / this.Caf[L]);
+        }
+        this.RateConstants();
+        this.constantfield_noma();
+        this.DefSteps(this.m_AP);
+        this.currentamplitude();
+        this.differen();
+        this.RUNGEKUTTA();
+        this.CurrentTime += this.timeinterval;
+    }
+};
+
+HeartModel.prototype.CABUFFER = function () {
+    for (var L = 1; L <= this.cellNo; L++) {
+        var N;
+        for (N = 1; N <= 10; N++) {
+            this.Caf[L] = this.C[3][6][L] /
+                (1.0 + (this.TRPNf[L] / this.KmTRPN) + (this.CMDNf[L] / this.KmCMDN));
+            this.TRPNf[L] = this.TRPNt / (1.0 + (this.Caf[L] / this.KmTRPN));
+            this.CMDNf[L] = this.CMDNt / (1.0 + (this.Caf[L] / this.KmCMDN));
+        }
+        for (N = 1; N < 10; N++) {
+            this.Cafrel[L] = this.C[5][6][L] / (1.0 + (this.CSQNf[L] / this.KmCSQN));
+            this.CSQNf[L] = this.CSQNt / (1.0 + (this.Cafrel[L] / this.KmCSQN));
+        }
+    }
+};
+
+HeartModel.prototype.constantfield_noma = function () {
+    for (var L = 1; L <= this.cellNo; L++) {
+        var Vm = this.Vm[L];
+        this.RTF  = R * (this.Condition[3] + 273.15) / F;
+        this.RTF2 = R * (this.Condition[3] + 273.15) / F / 2.0;
+
+        if (Vm === 50.0) this.CaCF[L] = 1.000654;
+        else this.CaCF[L] = ((Vm - 50.0) / this.RTF2) / (1 - exp(-(Vm - 50.0) / this.RTF2));
+        this.CaCF[L] = this.CaCF[L] *
+            (this.Caf[L] * exp(50.0 / this.RTF2) - this.Cae * exp(-(Vm - 50.0) / this.RTF2));
+
+        if (Vm === 50.0) this.KCF[L] = 0.99906;
+        else this.KCF[L] = ((Vm - 50.0) / this.RTF) / (1.0 - exp(-(Vm - 50.0) / this.RTF));
+        this.KCF[L] = this.KCF[L] *
+            (this.C[1][6][L] * exp(50.0 / this.RTF) - this.Ke * exp(-(Vm - 50.0) / this.RTF));
+
+        if (Vm === 50.0) this.NaCF[L] = 0.99906;
+        else this.NaCF[L] = ((Vm - 50.0) / this.RTF) / (1.0 - exp(-(Vm - 50.0) / this.RTF));
+        this.NaCF[L] = this.NaCF[L] *
+            (this.C[2][6][L] * exp(50.0 / this.RTF) - this.Nae * exp(-(Vm - 50.0) / this.RTF));
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* rate constants                                                     */
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.RateConstants = function () {
+    if (this.bUserRate) this.RateConstantsUser();
+    else this.RateConstantsDefault();
+
+    for (var L = 1; L <= this.cellNo; L++) {
+        var Vm = this.Vm[L], m = this.m, h = this.h, Org = this.Org;
+
+        /* Ih */
+        m[11][1][L] = exp(-0.0220741 * (Vm + 386.9));
+        m[11][2][L] = exp(0.052 * (Vm - 73.08));
+        m[11][3][L] = m[11][1][L] / (m[11][1][L] + m[11][2][L]);
+        m[11][4][L] = 1.0 / (m[11][1][L] + m[11][2][L]);
+
+        h[11][1][L] = exp(-0.0220741 * (Vm + 386.9));
+        h[11][2][L] = exp(0.052 * (Vm - 73.08));
+        h[11][3][L] = h[11][1][L] / (h[11][1][L] + h[11][2][L]);
+        h[11][4][L] = 1.0 / (h[11][1][L] + h[11][2][L]);
+
+        /* ACh activated K */
+        if (this.ACh[L] === 0.0) m[12][1][L] = 0.165 * 0.001 * 1.5;
+        else m[12][1][L] = 12.32 / (1.0 + 4.2 / this.ACh[L]) * 0.001;
+        m[12][2][L] = 10.0 * exp(0.0133 * (Vm + 40.0)) * 0.001;
+
+        h[12][1][L] = exp(-0.0220741 * (Vm + 386.9));
+        h[12][2][L] = exp(0.052 * (Vm - 73.08));
+        h[12][3][L] = h[12][1][L] / (h[12][1][L] + h[12][2][L]);
+        h[12][4][L] = 1.0 / (h[12][1][L] + h[12][2][L]);
+
+        /* Ca transfer in the Ca store */
+        if (Vm === -64.0) Org[2][1][L] = 0.0200047;
+        else Org[2][1][L] = 0.000625 * 8.0 * (Vm + 64.0) / (exp(0.25 * (Vm + 64.0)) - 1.0);
+        Org[2][2][L] = 0.005 * 8.0 / (1.0 + exp(-0.25 * (Vm + 64.0)));
+
+        /* Na/Ca exchange, ping-pong */
+        var PNAO = 1.0 / (1.0 + ((1.0 + this.Cae / this.KCaO) / (pow(this.Nae, 3.0) / this.KNAO)));
+        var PNAI = 1.0 / (1.0 + ((1.0 + this.Caf[L] / this.KCaI) / (pow(this.C[2][6][L], 3.0) / this.KNAI)));
+        var PCAO = 1.0 / (1.0 + ((1.0 + pow(this.Nae, 3.0) / this.KNAO) / (this.Cae / this.KCaO)));
+        var PCAI = 1.0 / (1.0 + ((1.0 + pow(this.C[2][6][L], 3.0) / this.KNAI) / (this.Caf[L] / this.KCaI)));
+
+        var k12 = PCAO, k21 = PCAI;
+        this.K30[L] = exp(this.Partition_v * Vm / this.RTF) * PNAI;
+        this.K03[L] = exp((this.Partition_v - 1.0) * Vm / this.RTF) * PNAO;
+        Org[1][2][L] = this.K30[L] + k21;
+        Org[1][1][L] = this.K03[L] + k12;
+    }
+};
+
+HeartModel.prototype.RateConstantsDefault = function () {
+    var m = this.m, mm = this.mm, h = this.h, hh = this.hh;
+    for (var L = 1; L <= this.cellNo; L++) {
+        var Vm = this.Vm[L], VK = this.VK[L];
+        var POINF, A, B, ab, den;
+
+        /* IRK1 */
+        POINF = 1.0 / (1.0 + 0.1 * exp((Vm - VK) / 15.0) + 0.048 * exp((Vm - VK) / 7.0));
+        A = 2.5 / (4.7 * exp((Vm - VK) / 28.7));
+        B = 2.5 / (6.0 * exp((VK - Vm) / 25.8));
+        ab = A + B;
+        m[3][1][L] = POINF * ab;
+        m[3][2][L] = ab;
+        m[3][3][L] = m[3][1][L] / (m[3][1][L] + m[3][2][L]);
+        m[3][4][L] = 1.0 / (m[3][1][L] + m[3][2][L]);
+        h[3][2][L] = 26.0 * exp((VK - Vm - 6.0) / 52.0);
+        h[3][1][L] = this.Mgi * 1.85 * exp((Vm - VK - 6.0) / 15.0);
+        h[3][3][L] = h[3][1][L] / (h[3][1][L] + h[3][2][L]);
+        h[3][4][L] = 1.0 / (h[3][1][L] + h[3][2][L]);
+
+        /* INa (Luo & Rudy) */
+        m[4][3][L] = 1.0 / (1.0 + exp((Vm + 52.0) / (-5.27)));
+        m[4][4][L] = 0.02 + 1.0 / (0.4 * exp((Vm + 68.0) / (-2.9)) + 0.09 * exp((Vm + 55.0) / 4.7) + 8.0);
+        m[4][1][L] = m[4][3][L] / m[4][4][L];
+        m[4][2][L] = (1.0 - m[4][3][L]) / m[4][4][L];
+
+        if (Vm >= -40.0) {
+            h[4][1][L] = 0.0;
+            h[4][2][L] = 1.0 / (0.13 * (1.0 + exp((Vm + 10.66) / (-11.1))));
+            h[4][3][L] = h[4][1][L] / (h[4][1][L] + h[4][2][L]);
+            h[4][4][L] = 1.0 / (h[4][1][L] + h[4][2][L]);
+            hh[4][1][L] = 0.0;
+            hh[4][2][L] = 0.3 * exp(-0.0000002535 * Vm) / (1.0 + exp(-0.1 * (Vm + 32.0)));
+            hh[4][3][L] = hh[4][1][L] / (hh[4][1][L] + hh[4][2][L]);
+            hh[4][4][L] = 1.0 / (hh[4][1][L] + hh[4][2][L]);
+        } else {
+            h[4][1][L] = 0.135 * exp((80.0 + Vm) / (-6.8));
+            h[4][2][L] = 3.56 * exp(0.079 * Vm) + 310000.0 * exp(0.35 * Vm);
+            h[4][3][L] = h[4][1][L] / (h[4][1][L] + h[4][2][L]);
+            h[4][4][L] = 1.0 / (h[4][1][L] + h[4][2][L]);
+            hh[4][1][L] = (0.000012714 * exp(0.2444 * Vm) - 0.00003474 * exp(-0.04391 * Vm)) *
+                (Vm + 37.78) / (1.0 + exp(0.311 * (Vm + 79.23)));
+            hh[4][2][L] = 0.1212 * exp(-0.01052 * Vm) / (1.0 + exp(-0.1378 * (Vm + 40.14)));
+            hh[4][3][L] = hh[4][1][L] / (hh[4][1][L] + hh[4][2][L]);
+            hh[4][4][L] = 1.0 / (hh[4][1][L] + hh[4][2][L]);
+        }
+
+        /* IKr */
+        var Painfinite = 1.0 / (1.0 + exp((-23.2 - Vm) / 10.6));
+        var tauaf = 1000.0 / (37.2 * exp(Vm / 15.9) + 0.96 * exp(-Vm / 22.5));
+        var tauas = 1000.0 / (4.2 * exp(Vm / 17.0) + 0.15 * exp(-Vm / 21.6));
+        m[5][1][L] = Painfinite / tauaf;
+        m[5][2][L] = (1.0 - (1.0 / (1.0 + exp((-23.2 - Vm) / 10.6)))) /
+            (1000.0 / (37.2 * exp(Vm / 15.9) + 0.96 * exp(-Vm / 22.5)));
+        m[5][3][L] = (1.0 - Painfinite) / tauaf;
+        m[5][4][L] = 1.0 / (m[5][1][L] + m[5][2][L]);
+        mm[5][1][L] = Painfinite / tauas;
+        mm[5][2][L] = (1.0 - Painfinite) / tauas;
+        mm[5][3][L] = mm[5][1][L] / (mm[5][1][L] + mm[5][2][L]);
+        mm[5][4][L] = 1.0 / (mm[5][1][L] + mm[5][2][L]);
+        var Piinfinite = 1.0 / (1.0 + exp((Vm + 28.6) / 17.1));
+        var taui = 2.0;
+        h[5][1][L] = Piinfinite / taui;
+        h[5][2][L] = (1 - Piinfinite) / taui;
+        h[5][3][L] = h[5][1][L] / (h[5][1][L] + h[5][2][L]);
+        h[5][4][L] = 1.0 / (h[5][1][L] + h[5][2][L]);
+
+        /* Ito */
+        m[6][3][L] = 1.0 / (1 + exp((Vm + 11.0) / (-8.0)));
+        m[6][4][L] = 3.5 * exp(-pow((Vm / 30), 2.0)) + 1.5;
+        h[6][3][L] = 1.0 / (1.0 + exp((Vm + 40.5) / 11.5));
+        h[6][4][L] = 481.2 * exp(-pow(((Vm + 52.45) / 14.97), 2.0)) + 14.14;
+        m[6][1][L] = m[6][3][L] / m[6][4][L];
+        m[6][2][L] = (1.0 - m[6][3][L]) / m[6][4][L];
+        h[6][1][L] = h[6][3][L] / h[6][4][L];
+        h[6][2][L] = (1.0 - h[6][3][L]) / h[6][4][L];
+
+        /* Isus */
+        m[7][3][L] = 1.0 / (1.0 + exp((Vm + 4.3) / (-8.0)));
+        m[7][4][L] = 9.0 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.5;
+        h[7][3][L] = 0.4 / (1.0 + exp((Vm + 20.0) / 10.0)) + 0.6;
+        h[7][4][L] = 47.0 / (1.0 + exp((Vm + 60.0) / 10.0)) + 300.0;
+        m[7][1][L] = m[7][3][L] / m[7][4][L];
+        m[7][2][L] = (1.0 - m[7][3][L]) / m[7][4][L];
+        h[7][1][L] = h[7][3][L] / h[7][4][L];
+        h[7][2][L] = (1.0 - h[7][3][L]) / h[7][4][L];
+
+        /* ICaL */
+        if (Vm === -30.0) m[8][1][L] = 0.02792845;
+        else m[8][1][L] = 0.01045 * (Vm + 30.0) / (1.0 - exp(-(Vm + 30.0) / 2.5));
+        if (Vm === 0.0) m[8][2][L] = 0.01052639;
+        else m[8][2][L] = 0.00421 * Vm / (exp(Vm / 2.5) - 1.0);
+        m[8][3][L] = m[8][1][L] / (m[8][1][L] + m[8][2][L]);
+        m[8][4][L] = 1.0 / (m[8][1][L] + m[8][2][L]);
+
+        if (Vm === -34.0) h[8][1][L] = 0.00200021;
+        else h[8][1][L] = 0.000355 * (Vm + 34.0) / (exp((Vm + 34.0) / 5.633) - 1.0);
+        h[8][2][L] = 0.0007 * (Vm + 64.0) / (1.0 + exp(-(Vm + 44.0) / 4.16));
+        h[8][3][L] = h[8][1][L] / (h[8][1][L] + h[8][2][L]);
+        h[8][4][L] = 1.0 / (h[8][1][L] + h[8][2][L]);
+
+        /* ICaT */
+        var DTinfinite = 1.0 / (1.0 + exp(-(Vm + 23.0) / 6.1));
+        var tauDT = 0.6 + 5.4 / (1.0 + exp(0.03 * (Vm + 100.0)));
+        m[9][1][L] = DTinfinite / tauDT;
+        m[9][2][L] = (1.0 - DTinfinite) / tauDT;
+        m[9][3][L] = m[9][1][L] / (m[9][1][L] + m[9][2][L]);
+        m[9][4][L] = 1.0 / (m[9][1][L] + m[9][2][L]);
+
+        var FTinfinite = 1.0 / (1 + exp((Vm + 75) / 6.6));
+        var tauFT = 1.0 + 40.0 / (1 + exp(0.08 * (Vm + 65.0)));
+        h[9][1][L] = FTinfinite / tauFT;
+        h[9][2][L] = (1.0 - FTinfinite) / tauFT;
+        h[9][3][L] = h[9][1][L] / (h[9][1][L] + h[9][2][L]);
+        h[9][4][L] = 1.0 / (h[9][1][L] + h[9][2][L]);
+
+        /* IKs */
+        var XsINF = 1.0 / (1.0 + exp(-(Vm - 1.5) / 16.7));
+        var TAUxs;
+        if (Vm === -30.0) TAUxs = 2058.4;
+        else {
+            TAUxs = 0.0000719 * (Vm + 30.0) / (1.0 - exp(-0.148 * (Vm + 30.0)));
+            TAUxs = TAUxs + 0.000131 * (Vm + 30.0) / ((exp(0.0687 * (Vm + 30.0)) - 1));
+            TAUxs = 1.0 * 2.0 / TAUxs;
+        }
+        m[10][1][L] = XsINF / TAUxs;
+        m[10][2][L] = 1.0 / TAUxs - m[10][1][L];
+        m[10][3][L] = m[10][1][L] / (m[10][1][L] + m[10][2][L]);
+        m[10][4][L] = 1.0 / (m[10][1][L] + m[10][2][L]);
+        h[10][1][L] = XsINF / TAUxs;
+        h[10][2][L] = 1.0 / TAUxs - h[10][1][L];
+        h[10][3][L] = h[10][1][L] / (h[10][1][L] + h[10][2][L]);
+        h[10][4][L] = 1.0 / (h[10][1][L] + h[10][2][L]);
+
+        /* INa  (Hodgkin & Huxley) */
+        var xm = 25 - Vm - 65;                        /* = -40 - Vm */
+        den = exp(xm / 10) - 1;
+        m[13][1][L] = (abs(xm) < 1e-6) ? 1.0 : 0.1 * xm / den;   /* alpha_m; 0/0 limit = 1   */
+        m[13][2][L] = 4 * exp((-65 - Vm) / 18);                  /* beta_m                   */
+        m[13][4][L] = 1 / (m[13][1][L] + m[13][2][L]);
+        m[13][3][L] = m[13][1][L] * m[13][4][L];
+
+        h[13][1][L] = 0.07 * exp((-65 - Vm) / 20);               /* alpha_h                  */
+        h[13][2][L] = 1 / (exp((30 - Vm - 65) / 10) + 1);        /* beta_h                   */
+        h[13][4][L] = 1 / (h[13][1][L] + h[13][2][L]);
+        h[13][3][L] = h[13][1][L] * h[13][4][L];
+
+        /* IKdr (Hodgkin & Huxley) */
+        var xn = 10 - Vm - 65;                        /* = -55 - Vm */
+        den = exp(xn / 10) - 1;
+        m[14][1][L] = (abs(xn) < 1e-6) ? 0.1 : 0.01 * xn / den;  /* alpha_n; 0/0 limit = 0.1 */
+        m[14][2][L] = 0.125 * exp((-Vm - 65) / 80);              /* beta_n                   */
+        m[14][4][L] = 1 / (m[14][1][L] + m[14][2][L]);
+        m[14][3][L] = m[14][1][L] * m[14][4][L];
+    }
+};
+
+HeartModel.prototype.RateConstantsUser = function () {
+    var m = this.m, mm = this.mm, h = this.h, hh = this.hh;
+    var RateM = this.RateM, RateMM = this.RateMM, RateH = this.RateH, RateHH = this.RateHH;
+    for (var L = 1; L <= this.cellNo; L++) {
+        var Vm = this.Vm[L], VK = this.VK[L], N;
+        for (N = 3; N <= NOP; N++) {
+            if (N !== 11 && N !== 12) {
+                m[N][3][L] = 1 / (1 + exp(-(Vm - RateM[N][1]) / RateM[N][2]));
+                m[N][4][L] = (RateM[N][3] - RateM[N][4]) * exp(-pow(Vm - RateM[N][5], 2) / RateM[N][6]) + RateM[N][4];
+                m[N][1][L] = m[N][3][L] / m[N][4][L];
+                m[N][2][L] = (1 - m[N][3][L]) / m[N][4][L];
+                h[N][3][L] = 1 / (1 + exp(-(Vm - RateH[N][1]) / RateH[N][2]));
+                h[N][4][L] = (RateH[N][3] - RateH[N][4]) * exp(-pow(Vm - RateH[N][5], 2) / RateH[N][6]) + RateH[N][4];
+                h[N][1][L] = h[N][3][L] / h[N][4][L];
+                h[N][2][L] = (1 - h[N][3][L]) / h[N][4][L];
+            }
+        }
+        h[3][3][L] = 1 / (1 + exp(-((Vm - VK) - RateH[3][1]) / RateH[3][2]));
+        h[3][4][L] = (RateH[3][3] - RateH[3][4]) * exp(-pow((Vm - VK) - RateH[3][5], 2) / (RateH[3][6] + 1e-20)) + RateH[3][4];
+        h[3][1][L] = this.Mgi * h[3][3][L] / h[3][4][L];
+        h[3][2][L] = (1 - h[3][3][L]) / h[3][4][L];
+        h[3][3][L] = h[3][1][L] / (h[3][1][L] + h[3][2][L]);
+        h[3][4][L] = 1 / (h[3][1][L] + h[3][2][L]);
+
+        m[3][3][L] = 0.5 / (1 + exp(-((Vm - VK) - RateM[3][1]) / RateM[3][2]));
+        m[3][4][L] = (RateM[3][3] - RateM[3][4]) * exp(-pow((Vm - VK) - RateM[3][5], 2) / (RateM[3][6] + 1e-20)) + RateM[3][4];
+        m[3][1][L] = m[3][3][L] / m[3][4][L];
+        m[3][2][L] = (1 - m[3][3][L]) / m[3][4][L];
+
+        hh[4][3][L] = 1 / (1 + exp(-(Vm - RateHH[4][1]) / RateHH[4][2]));
+        hh[4][4][L] = (RateHH[4][3] - RateHH[4][4]) * exp(-pow(Vm - RateHH[4][5], 2) / RateHH[4][6]) + RateHH[4][4];
+        hh[4][1][L] = hh[4][3][L] / hh[4][4][L];
+        hh[4][2][L] = (1 - hh[4][3][L]) / hh[4][4][L];
+
+        mm[5][3][L] = 1 / (1 + exp(-(Vm - RateMM[5][1]) / RateMM[5][2]));
+        mm[5][4][L] = (RateMM[5][3] - RateMM[5][4]) * exp(-pow(Vm - RateMM[5][5], 2) / RateMM[5][6]) + RateMM[5][4];
+        mm[5][1][L] = mm[5][3][L] / mm[5][4][L];
+        mm[5][2][L] = (1 - mm[5][3][L]) / mm[5][4][L];
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* current amplitudes                                                 */
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.currentamplitude = function () {
+    var ii = this.ii, m = this.m, mm = this.mm, h = this.h, hh = this.hh, C = this.C;
+
+    if (this.bHH) {
+        var Vm = this.Vm[1];
+        /* Driving force.  heart10Doc.cpp (2013) uses the ohmic form (Vm - E);
+           heart10Doc_HH/_JB/_CF.cpp (2008) use the constant-field factors
+           NaCF / KCF.  bConstantField selects between the two. */
+        var dfNa = this.bConstantField ? this.NaCF[1] : (Vm - this.VNa[1]);
+        var dfK  = this.bConstantField ? this.KCF[1]  : (Vm - this.VK[1]);
+
+        /* INa (HH) */
+        ii[13][1][1] = 0;
+        ii[13][2][1] = pow(m[13][6][1], 3.0) * h[13][6][1] * this.GNaHH[1] * dfNa;
+        ii[13][4][1] = ii[13][1][1] + ii[13][2][1];
+
+        /* IKdr (HH) */
+        ii[14][1][1] = pow(m[14][6][1], 4.0) * this.GIKdr[1] * dfK;
+        ii[14][2][1] = 0;
+        ii[14][4][1] = ii[14][1][1] + ii[14][2][1];
+
+        /* background (leak) */
+        ii[20][2][1] = this.GILNSCNa[1] * dfNa;
+        ii[20][1][1] = this.GILNSCNa[1] * this.RGILNSCK * dfK;
+        ii[20][4][1] = ii[20][1][1] + ii[20][2][1];
+
+        /* capacitive transient */
+        if (this.timeintervalb === 0) this.Icap[1] = this.Cap * C[6][5][1];
+        else this.Icap[1] = this.Cap * (C[6][6][1] - C[6][7][1]) / this.timeintervalb;
+
+        this.Itot_vm[1] = ii[13][4][1] + ii[14][4][1] + ii[20][4][1];
+        if (this.m_AP === 0) {
+            this.Itot[1] = this.Itot_vm[1] + this.Iinj[1] + Vm / this.Condition[1];
+        } else {
+            this.Itot[1] = this.Itot_vm[1] + this.Icap[1] + Vm / this.Condition[1];
+        }
+        return;
+    }
+
+    for (var L = 1; L <= this.cellNo; L++) {
+        var V = this.Vm[L], KCF = this.KCF[L], NaCF = this.NaCF[L], CaCF = this.CaCF[L];
+
+        /* INa */
+        ii[4][1][L] = pow(m[4][6][L], 3.0) * h[4][6][L] * hh[4][6][L] * this.GNa[L] * this.RGKNA * KCF;
+        ii[4][2][L] = pow(m[4][6][L], 3.0) * h[4][6][L] * hh[4][6][L] * this.GNa[L] * NaCF;
+        ii[4][4][L] = ii[4][1][L] + ii[4][2][L];
+
+        if (this.timeintervalb === 0) this.Icap[L] = this.Cap * C[6][5][L];
+        else this.Icap[L] = this.Cap * (C[6][6][L] - C[6][7][L]) / this.timeintervalb;
+
+        /* Ito */
+        ii[6][1][L] = (m[6][6][L] * h[6][6][L]) * this.GITOK[L] * KCF;
+        ii[6][2][L] = (m[6][6][L] * h[6][6][L]) * this.GITOK[L] * this.RGITONa * NaCF;
+        ii[6][4][L] = ii[6][1][L] + ii[6][2][L];
+
+        /* Isus */
+        ii[7][1][L] = m[7][6][L] * h[7][6][L] * this.GIsusK[L] * KCF;
+        ii[7][2][L] = m[7][6][L] * h[7][6][L] * this.GIsusK[L] * this.RGIsusNa * NaCF;
+        ii[7][4][L] = ii[7][1][L] + ii[7][2][L];
+
+        /* ICaL */
+        var ICaLCainf = this.PCaL[L] * CaCF;
+        var ICaLKinf  = this.PCaLK * this.PCaL[L] * KCF;
+        var ICaLNainf = this.PCaLNa * this.PCaL[L] * NaCF;
+        ii[8][3][L] = ICaLCainf * m[8][6][L] * h[8][6][L];
+        ii[8][1][L] = ICaLKinf * m[8][6][L] * h[8][6][L];
+        ii[8][2][L] = ICaLNainf * m[8][6][L] * h[8][6][L];
+        ii[8][4][L] = ii[8][1][L] + ii[8][2][L] + ii[8][3][L];
+
+        /* ICaT */
+        var ICaTInf = 2 * this.PCaT[L] * CaCF;
+        ii[9][4][L] = m[9][6][L] * h[9][6][L] * ICaTInf;
+
+        /* IKr */
+        var FF = 0.6, FS = 0.4;
+        var PA = FF * m[5][6][L] + FS * mm[5][6][L];
+        var PI = h[5][6][L];
+        ii[5][4][L] = this.GKr[L] * PA * PI * (V - this.VK[L]);
+
+        /* IRK1 */
+        ii[3][4][L] = this.GIRK1[L] * (V - this.VK[L]) * pow((this.Ke / 5.4), 0.62) *
+            m[3][6][L] * (1 - h[3][3][L]);
+
+        /* IKs */
+        ii[10][1][L] = m[10][6][L] * this.GIKsK[L] * KCF;
+        ii[10][2][L] = m[10][6][L] * this.RGIKsNa * this.GIKsK[L] * NaCF;
+        ii[10][4][L] = ii[10][1][L] + ii[10][2][L];
+
+        /* Ih */
+        ii[11][1][L] = this.GfK[L] * (V - this.VK[L]) * pow(m[11][6][L], 2.0);
+        ii[11][2][L] = this.GfNa[L] * (V - this.VNa[L]) * pow(m[11][6][L], 2.0);
+        ii[11][4][L] = ii[11][1][L] + ii[11][2][L];
+
+        /* IKACh */
+        ii[12][4][L] = 0.27 / 2.0 * this.Cap * m[12][6][L] * (V - this.VK[L]) /
+            (1.0 + exp((V + 20.0) / 20.0));
+
+        /* INa (HH) -- inside the heart model it uses the constant-field driving force */
+        ii[13][1][L] = 0;
+        ii[13][2][L] = pow(m[13][6][L], 3.0) * h[13][6][L] * this.GNaHH[L] * NaCF;
+        ii[13][4][L] = ii[13][1][L] + ii[13][2][L];
+
+        ii[14][1][L] = pow(m[14][6][L], 4.0) * this.GIKdr[1] * this.KCF[1];
+        ii[14][2][L] = 0;
+        ii[14][4][L] = ii[14][1][L] + ii[14][2][L];
+
+        /* exchanger / pump */
+        ii[21][4][L] = this.INaCaMax[L] * (this.Org[1][6][L] * this.K30[L] -
+            (1.0 - this.Org[1][6][L]) * this.K03[L]);
+        ii[22][4][L] = (1.0 / (1.0 + pow(this.KmNa / C[2][6][L], 1.36))) *
+            (1.0 - pow((V - 50.0) / 125.0 / 2.0, 2.0)) * this.INaKmax[L];
+
+        /* background */
+        ii[19][4][L] = this.GbCa[L] * CaCF;
+        ii[20][2][L] = this.GILNSCNa[L] * NaCF;
+        ii[20][1][L] = this.GILNSCNa[L] * this.RGILNSCK * KCF;
+        ii[20][4][L] = ii[20][1][L] + ii[20][2][L];
+
+        /* Ca kinetics */
+        this.Irel[L] = this.Arel * this.Cafrel[L] / (1 + pow(this.KmCa / this.Caf[L], 2.0));
+        this.Itr[L]  = this.Org[2][6][L] * this.Atr * (C[4][6][L] - this.Cafrel[L]);
+        this.Iup[L]  = this.Aup * this.Caf[L] * (1.0 - (C[4][6][L] / this.Caupmax));
+
+        this.ICanet[L] = ii[19][4][L] + ii[8][3][L] + ii[9][4][L] - 2.0 * ii[21][4][L] -
+            this.Irel[L] + this.Iup[L];
+        this.IKnet[L] = ii[8][1][L] + ii[5][4][L] + ii[6][1][L] + ii[7][1][L] + ii[10][1][L] +
+            ii[4][1][L] + ii[3][4][L] - 2.0 * ii[22][4][L] + ii[11][1][L] + ii[12][4][L] + ii[14][1][L];
+        this.INanet[L] = ii[20][2][L] + ii[8][2][L] + ii[6][2][L] + ii[7][2][L] + ii[4][2][L] +
+            ii[10][2][L] + ii[13][2][L] + 3.0 * ii[21][4][L] + 3.0 * ii[22][4][L] + ii[11][2][L];
+
+        this.Itot_vm[L] = ii[3][4][L] + ii[4][4][L] + ii[5][4][L] + ii[6][4][L] + ii[7][4][L] +
+            ii[8][4][L] + ii[9][4][L] + ii[10][4][L] + ii[11][4][L] + ii[12][4][L] + ii[13][4][L] +
+            ii[14][4][L] + ii[19][4][L] + ii[20][4][L] + ii[21][4][L] + ii[22][4][L];
+
+        if (this.m_AP === 0) this.Itot[L] = this.Itot_vm[L] + this.Iinj[L] + V / this.Condition[1];
+        else                 this.Itot[L] = this.Itot_vm[L] + this.Icap[L] + V / this.Condition[1];
+    }
+};
+
+/* ------------------------------------------------------------------ */
+HeartModel.prototype.MemoryCurrent = function () {
+    for (var L = 1; L <= this.cellNo; L++) {
+        var N;
+        for (N = 3; N <= NOP; N++) this.ii[N][5][L] = this.ii[N][4][L];
+        for (N = 19; N <= 22; N++) this.ii[N][5][L] = this.ii[N][4][L];
+        this.Itotb[L] = this.Itot[L];
+        this.Icapb[L] = this.Icap[L];
+        this.Cafb[L]  = this.Caf[L];
+    }
+};
+
+HeartModel.prototype.RUNGEKUTTA = function () {
+    var m = this.m, mm = this.mm, h = this.h, hh = this.hh, C = this.C, Org = this.Org;
+    var dt = this.timeinterval;
+    for (var L = 1; L <= this.cellNo; L++) {
+        var N;
+        for (N = 3; N <= NOP; N++) {
+            m[N][7][L] = m[N][6][L];
+            h[N][7][L] = h[N][6][L];
+            m[N][6][L] = m[N][7][L] + m[N][5][L] / (m[N][1][L] + m[N][2][L]) *
+                (1 - exp(-dt * (m[N][1][L] + m[N][2][L])));
+            h[N][6][L] = h[N][7][L] + h[N][5][L] / (h[N][1][L] + h[N][2][L]) *
+                (1 - exp(-dt * (h[N][1][L] + h[N][2][L])));
+        }
+        mm[5][7][L] = mm[5][6][L];
+        hh[4][7][L] = hh[4][6][L];
+        mm[5][6][L] = mm[5][7][L] + mm[5][5][L] / (mm[5][1][L] + mm[5][2][L]) *
+            (1 - exp(-dt * (mm[5][1][L] + mm[5][2][L])));
+        hh[4][6][L] = hh[4][7][L] + hh[4][5][L] / (hh[4][1][L] + hh[4][2][L]) *
+            (1 - exp(-dt * (hh[4][1][L] + hh[4][2][L])));
+
+        for (N = 1; N <= 5; N++) {
+            C[N][7][L] = C[N][6][L];
+            C[N][6][L] = C[N][7][L] + C[N][5][L] * dt;
+        }
+        for (N = 1; N <= 2; N++) {
+            Org[N][7][L] = Org[N][6][L];
+            Org[N][6][L] = Org[N][7][L] + Org[N][5][L] / (Org[N][1][L] + Org[N][2][L]) *
+                (1 - exp(-dt * (Org[N][1][L] + Org[N][2][L])));
+        }
+        if (this.m_AP === 1) {
+            C[6][7][L] = C[6][6][L];
+            C[6][6][L] = C[6][7][L] + C[6][5][L] * this.Condition[0] * this.Cap *
+                (1.0 - exp(-dt / this.Condition[0] / this.Cap));
+        } else {
+            C[6][7][L] = C[6][6][L];
+            C[6][6][L] = C[6][7][L] + C[6][5][L] * dt;
+        }
+        this.Vm[L] = C[6][6][L];
+    }
+};
+
+HeartModel.prototype.differen = function () {
+    var m = this.m, mm = this.mm, h = this.h, hh = this.hh, C = this.C, Org = this.Org;
+    for (var L = 1; L <= this.cellNo; L++) {
+        var N;
+        for (N = 3; N <= NOP; N++) {
+            m[N][5][L] = m[N][1][L] * (1.0 - m[N][6][L]) - m[N][2][L] * m[N][6][L];
+            h[N][5][L] = h[N][1][L] * (1.0 - h[N][6][L]) - h[N][2][L] * h[N][6][L];
+        }
+        if (!this.bHH) {
+            mm[5][5][L] = mm[5][1][L] * (1.0 - mm[5][6][L]) - mm[5][2][L] * mm[5][6][L];
+            hh[4][5][L] = hh[4][1][L] * (1.0 - hh[4][6][L]) - hh[4][2][L] * hh[4][6][L];
+            m[3][5][L] = m[3][1][L] * (1.0 - m[3][6][L]) -
+                m[3][2][L] * m[3][6][L] * pow((1.0 - h[3][3][L]), 3.0);
+
+            for (N = 1; N <= 2; N++) {
+                Org[N][5][L] = Org[N][1][L] * (1.0 - Org[N][6][L]) - Org[N][2][L] * Org[N][6][L];
+            }
+
+            C[1][5][L] = -this.IKnet[L] / this.Vtotal / F;
+            C[2][5][L] = -this.INanet[L] / this.Vtotal / F;
+            C[3][5][L] = -this.ICanet[L] / 2.0 / this.Vtotal / F;
+            C[4][5][L] = (this.Iup[L] - this.Itr[L]) / 2.0 / this.Vup / F;
+            C[5][5][L] = (this.Itr[L] - this.Irel[L]) / 2.0 / this.Vrel / F;
+
+            if (this.m_AP === 0) {
+                C[6][5][L] = -1.0 / this.Cap * this.Itot[L];
+            } else {
+                C[6][5][L] = 1.0 / this.Cap *
+                    ((this.E - C[6][6][L]) / this.Condition[0] - this.Itot[L] + this.Icap[L]);
+            }
+        }
+    }
+};
+
+HeartModel.prototype.PrepareNextPulse = function () {
+    this.Pulse[5] = this.Pulse[5] + this.Pulse[13];
+    this.Pulse[6] = this.Pulse[6] + this.Pulse[13];
+    this.Pulse[7] = this.Pulse[7] + this.Pulse[14];
+    this.CurrentTime = 0;
+    this.episodeN = this.episodeN + 1;
+};
+
+HeartModel.prototype.SetTimeInterval = function () {
+    var C = this.C;
+    if (this.m_FixedTimeInterval <= 0) {
+        if (this.m_AP === 0) {
+            if (abs(this.Iinj[1]) > 0) {
+                this.timeinterval = 0.03;
+            } else {
+                this.timeinterval = 0.2 /
+                    (1.0 + exp(-(((-abs(this.TotalTime - 700.0) + abs(this.TotalTime + 700.0)) / 2.0) - 500.0) / 200.0)) *
+                    (0.1 + 1.9 / (1 + exp(abs((-abs(C[6][5][1] - 0.1) + abs(C[6][5][1] + 0.1)) / 2.0) / 0.12)));
+            }
+        } else {
+            this.timeinterval = 1.0 /
+                (1.0 + exp(-(((-abs(this.TotalTime - 2500.0) + abs(this.TotalTime + 2500.0)) / 2.0) - 500.0) / 130.0)) *
+                (0.1 + 1.9 / (1 + exp(abs((-abs(C[6][5][1] - 0.1) + abs(C[6][5][1] + 0.1)) / 2.0) / 0.12)));
+        }
+    } else {
+        this.timeinterval = this.m_FixedTimeInterval;
+    }
+    this.timeintervalb = this.timeinterval;
+};
+
+HeartModel.prototype.DefSteps = function (iAP) {
+    var P = this.Pulse;
+    this.E0 = this.E;
+    var StimulusAmplitude = P[0];
+    var t = (this.CurrentTime / P[18] - Math.trunc(this.CurrentTime / P[18])) * P[18];
+
+    if (t >= 0.0 && t <= P[1]) StimulusAmplitude = P[0];
+    if (t > P[1] && t <= (P[4] + P[1]))
+        StimulusAmplitude = (P[3] - P[2]) * (t - P[1]) / P[4] + P[2];
+    if (t > (P[1] + P[4]) && t <= (P[1] + P[4] + P[7]))
+        StimulusAmplitude = (P[6] - P[5]) * (t - P[1] - P[4]) / P[7] + P[5];
+    if (t > (P[1] + P[4] + P[7]) && t <= (P[1] + P[4] + P[7] + P[10]))
+        StimulusAmplitude = (P[9] - P[8]) * (t - P[1] - P[4] - P[7]) / P[10] + P[8];
+    if (t > (P[1] + P[4] + P[7] + P[10]) && t <= (P[1] + P[4] + P[7] + P[10] + P[12]))
+        StimulusAmplitude = P[11];
+    if (t > (P[1] + P[4] + P[7] + P[10] + P[12])) StimulusAmplitude = P[0];
+    if (this.CurrentTime > (P[18] * P[17])) StimulusAmplitude = P[0];
+
+    /* stimSign = +1 reproduces heart10Doc.cpp literally: Iinj is added to the
+       membrane current (Itot = Itot_vm + Iinj, dV/dt = -Itot/Cap), so a
+       POSITIVE pulse HYPERpolarises.  stimSign = -1 gives the usual
+       electrophysiological convention (positive pulse = depolarising), which
+       is what the supplied protocol files (rheobase, AnodalBreak, ...) and
+       data/temp.dat assume. */
+    if (iAP === 0) this.Iinj[1] = this.stimSign * StimulusAmplitude;
+    else this.E = StimulusAmplitude;
+};
+
+global.HeartModel = HeartModel;
+global.HEART_NOP = NOP;
+
+})(window);
+
+</script>
+<script>
+/* ==== js/graph.js ==== */
+/* ------------------------------------------------------------------
+ * graph.js -- canvas replacement for CGraphCtrl (GraphCtrl.cpp)
+ *
+ * Same layout as the original: the plotting rectangle occupies
+ * 0.10 .. 0.90 of the width and 0.10 .. 0.85 of the height, with an
+ * 8 x 6 grid, axis titles and tick labels.
+ *
+ * Traces are drawn incrementally (one segment per integration step,
+ * like the original bitblt drawing) and the raw points are also kept
+ * so the plot can be redrawn after a range change or a window resize.
+ * ------------------------------------------------------------------ */
+(function (global) {
+'use strict';
+
+function Graph(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.left = 0.10; this.top = 0.10; this.right = 0.90; this.bottom = 0.85;
+    this.minX = 0; this.maxX = 100; this.minY = -1; this.maxY = 1;
+    this.xDiv = 8; this.yDiv = 6;
+    this.gridColor = '#808080';
+    this.bgColor = '#ffffff';
+    this.labelColor = '#008000';
+    this.xUnit = 'ms'; this.yUnit = 'nA';
+    this.lineWidth = 1;
+    this.texts = [];                 // {fx, fy, text, color}
+    this.segments = [];              // {x0,y0,x1,y1,color,width}
+    this.dpr = 1;
+    this.resize();
+}
+
+Graph.prototype.resize = function () {
+    var dpr = global.devicePixelRatio || 1;
+    var rect = this.canvas.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
+    this.cssW = w; this.cssH = h; this.dpr = dpr;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+};
+
+Graph.prototype.setXYRange = function (minX, minY, maxX, maxY) {
+    this.minX = minX; this.minY = minY; this.maxX = maxX; this.maxY = maxY;
+};
+
+Graph.prototype.plotRect = function () {
+    return {
+        x: this.cssW * this.left,
+        y: this.cssH * this.top,
+        w: this.cssW * (this.right - this.left),
+        h: this.cssH * (this.bottom - this.top)
+    };
+};
+
+Graph.prototype.px = function (x) {
+    var r = this.plotRect();
+    var sx = (this.maxX - this.minX) || 1;
+    return r.x + (x - this.minX) / sx * r.w;
+};
+
+Graph.prototype.py = function (y) {
+    var r = this.plotRect();
+    var sy = (this.maxY - this.minY) || 1;
+    return r.y + r.h - (y - this.minY) / sy * r.h;
+};
+
+/* pixel -> data (inverse of px/py), for the cursor readout */
+Graph.prototype.xFromPx = function (xpix) {
+    var r = this.plotRect();
+    return this.minX + (xpix - r.x) / r.w * (this.maxX - this.minX);
+};
+Graph.prototype.yFromPx = function (ypix) {
+    var r = this.plotRect();
+    return this.maxY - (ypix - r.y) / r.h * (this.maxY - this.minY);
+};
+Graph.prototype.insidePlot = function (xpix, ypix) {
+    var r = this.plotRect();
+    return xpix >= r.x && xpix <= r.x + r.w && ypix >= r.y && ypix <= r.y + r.h;
+};
+
+function fmt(v, span) {
+    var a = Math.abs(span);
+    if (a >= 100) return v.toFixed(0);
+    if (a >= 10) return v.toFixed(1);
+    if (a >= 1) return v.toFixed(2);
+    if (a >= 0.1) return v.toFixed(3);
+    return v.toPrecision(3);
+}
+
+Graph.prototype.drawFrame = function () {
+    var c = this.ctx, r = this.plotRect(), i, x, y, v;
+
+    c.save();
+    c.fillStyle = this.bgColor;
+    c.fillRect(0, 0, this.cssW, this.cssH);
+
+    /* grid */
+    c.strokeStyle = this.gridColor;
+    c.lineWidth = 1;
+    c.setLineDash([1, 3]);
+    c.beginPath();
+    for (i = 1; i < this.xDiv; i++) {
+        x = Math.round(r.x + r.w * i / this.xDiv) + 0.5;
+        c.moveTo(x, r.y); c.lineTo(x, r.y + r.h);
+    }
+    for (i = 1; i < this.yDiv; i++) {
+        y = Math.round(r.y + r.h * i / this.yDiv) + 0.5;
+        c.moveTo(r.x, y); c.lineTo(r.x + r.w, y);
+    }
+    c.stroke();
+    c.setLineDash([]);
+
+    /* frame */
+    c.strokeStyle = this.gridColor;
+    c.strokeRect(Math.round(r.x) + 0.5, Math.round(r.y) + 0.5, Math.round(r.w), Math.round(r.h));
+
+    /* zero line */
+    if (this.minY < 0 && this.maxY > 0) {
+        y = Math.round(this.py(0)) + 0.5;
+        c.strokeStyle = this.gridColor;
+        c.globalAlpha = 0.9;
+        c.beginPath(); c.moveTo(r.x, y); c.lineTo(r.x + r.w, y); c.stroke();
+        c.globalAlpha = 1;
+    }
+
+    /* tick labels */
+    c.fillStyle = this.labelColor;
+    c.font = '11px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    for (i = 0; i <= this.xDiv; i++) {
+        v = this.minX + (this.maxX - this.minX) * i / this.xDiv;
+        x = r.x + r.w * i / this.xDiv;
+        c.fillText(fmt(v, this.maxX - this.minX), x, r.y + r.h + 4);
+    }
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (i = 0; i <= this.yDiv; i++) {
+        v = this.maxY - (this.maxY - this.minY) * i / this.yDiv;
+        y = r.y + r.h * i / this.yDiv;
+        c.fillText(fmt(v, this.maxY - this.minY), r.x - 6, y);
+    }
+
+    /* axis titles */
+    c.textAlign = 'right'; c.textBaseline = 'top';
+    c.fillText(this.xUnit, r.x + r.w, r.y + r.h + 18);
+    c.textAlign = 'left'; c.textBaseline = 'bottom';
+    c.fillText(this.yUnit, r.x - 34, r.y - 2);
+
+    /* free texts (episode counter, cell death ...) */
+    for (i = 0; i < this.texts.length; i++) {
+        var t = this.texts[i];
+        c.fillStyle = t.color;
+        c.textAlign = 'left'; c.textBaseline = 'top';
+        c.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        c.fillText(t.text, this.cssW * t.fx, this.cssH * t.fy);
+    }
+    c.restore();
+};
+
+/* Clear the plot.  full = true also drops the stored trace data. */
+Graph.prototype.clear = function (full) {
+    if (full !== false) { this.segments = []; this.texts = []; }
+    this.drawFrame();
+};
+
+Graph.prototype.putText = function (fx, fy, text, color, replace) {
+    if (replace) {
+        for (var i = 0; i < this.texts.length; i++) {
+            if (this.texts[i].fx === fx && this.texts[i].fy === fy) {
+                this.texts[i] = { fx: fx, fy: fy, text: text, color: color };
+                this.redraw();
+                return;
+            }
+        }
+    }
+    this.texts.push({ fx: fx, fy: fy, text: text, color: color });
+    this.redraw();
+};
+
+/* Append and immediately draw one line segment. */
+Graph.prototype.appendPoint = function (x0, y0, x1, y1, color, width) {
+    this.segments.push({ x0: x0, y0: y0, x1: x1, y1: y1, c: color, w: width || this.lineWidth });
+    var c = this.ctx;
+    if (!isFinite(y0) || !isFinite(y1)) return;
+    c.save();
+    var r = this.plotRect();
+    c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+    c.strokeStyle = color;
+    c.lineWidth = width || this.lineWidth;
+    c.beginPath();
+    c.moveTo(this.px(x0), this.py(y0));
+    c.lineTo(this.px(x1), this.py(y1));
+    c.stroke();
+    c.restore();
+};
+
+/* ---- auto scaling -------------------------------------------------
+ * dataYRange()  : min/max of every stored segment
+ * niceRange()   : pad by 8% and snap to a round step so the 6 grid
+ *                 divisions land on readable numbers
+ * autoScaleY()  : apply it; returns the new [min, max] or null
+ * ------------------------------------------------------------------ */
+/* Only samples inside the visible X window count, so zooming in time
+   re-scales Y to what is actually on screen. */
+Graph.prototype.dataYRange = function () {
+    var lo = Infinity, hi = -Infinity, i, s;
+    for (i = 0; i < this.segments.length; i++) {
+        s = this.segments[i];
+        if (s.x1 < this.minX || s.x0 > this.maxX) continue;
+        if (isFinite(s.y0)) { if (s.y0 < lo) lo = s.y0; if (s.y0 > hi) hi = s.y0; }
+        if (isFinite(s.y1)) { if (s.y1 < lo) lo = s.y1; if (s.y1 > hi) hi = s.y1; }
+    }
+    return (isFinite(lo) && isFinite(hi)) ? [lo, hi] : null;
+};
+
+function niceStep(x) {
+    x = Math.abs(x);
+    if (!(x > 0)) return 1;
+    var e = Math.pow(10, Math.floor(Math.log(x) / Math.LN10));
+    var f = x / e;
+    var n = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+    return n * e;
+}
+
+Graph.niceRange = function (lo, hi, divs) {
+    if (!isFinite(lo) || !isFinite(hi)) return null;
+    if (hi - lo < 1e-12) { var c = (hi + lo) / 2 || 0; lo = c - 0.5; hi = c + 0.5; }
+    var pad = (hi - lo) * 0.08;
+    lo -= pad; hi += pad;
+    var step = niceStep((hi - lo) / (divs || 6));
+    lo = Math.floor(lo / step) * step;
+    hi = Math.ceil(hi / step) * step;
+    /* kill -0 and floating-point dust such as 0.30000000000000004 */
+    var dec = Math.max(0, -Math.floor(Math.log(step) / Math.LN10) + 2);
+    lo = parseFloat(lo.toFixed(dec)) + 0;
+    hi = parseFloat(hi.toFixed(dec)) + 0;
+    return [lo, hi];
+};
+
+Graph.prototype.autoScaleY = function () {
+    var d = this.dataYRange();
+    if (!d) return null;
+    var r = Graph.niceRange(d[0], d[1], this.yDiv);
+    if (!r) return null;
+    this.minY = r[0]; this.maxY = r[1];
+    this.redraw();
+    return r;
+};
+
+Graph.prototype.redraw = function () {
+    this.drawFrame();
+    var c = this.ctx, r = this.plotRect(), i, s, cur = null;
+    c.save();
+    c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+    for (i = 0; i < this.segments.length; i++) {
+        s = this.segments[i];
+        if (!isFinite(s.y0) || !isFinite(s.y1)) continue;
+        if (cur === null || cur.c !== s.c || cur.w !== s.w) {
+            if (cur !== null) c.stroke();
+            c.strokeStyle = s.c; c.lineWidth = s.w;
+            c.beginPath();
+            cur = s;
+        }
+        c.moveTo(this.px(s.x0), this.py(s.y0));
+        c.lineTo(this.px(s.x1), this.py(s.y1));
+    }
+    if (cur !== null) c.stroke();
+    c.restore();
+};
+
+global.Graph = Graph;
+
+})(window);
+
+</script>
+<script>
+/* ==== js/strengthduration.js ==== */
+/* ------------------------------------------------------------------
+ * strengthduration.js -- 강도–지속시간 곡선 (매뉴얼 III-1 2)
+ *
+ * 자극기간을 바꿔 가며 역치전류를 이분법으로 찾고, I = Ir(1 + C/t) 로
+ * 맞춰 rheobase current(Ir) 와 chronaxie(C) 를 구한다.  곡선 위에
+ * Ir 은 수평 점근선으로, C 는 2·Ir 과 만나는 지점으로 직접 그려서
+ * 두 정의가 그림에서 바로 읽히게 한다.
+ *
+ * 계산은 heart10Doc.cpp 포팅본(HeartModel)을 그대로 쓰며, 화면에
+ * 그리지 않고 한 에피소드씩 돌린다.
+ * ------------------------------------------------------------------ */
+(function (global) {
+'use strict';
+
+/* 한 번의 자극에 대해 막전위 최대값을 구한다 (화면 출력 없음).
+   cfg 는 app.js 가 넘겨 주는 현재 세포·실험조건. */
+function simulateOnce(cfg, P) {
+    var M = new global.HeartModel(), k;
+
+    for (k = 0; k < 25; k++) M.SF[k] = cfg.SF[k];
+    for (k = 0; k < 10; k++) M.Ion[k] = cfg.Ion[k];
+    for (k = 0; k < 4; k++) M.Condition[k] = cfg.Condition[k];
+    for (k = 0; k < 19; k++) M.Pulse[k] = P[k];
+
+    M.cellNo = 1;
+    M.m_AP = 0;                       // strength-duration 은 전류고정 실험
+    M.bHH = cfg.bHH;
+    M.bConstantField = cfg.bConstantField;
+    M.stimSign = cfg.stimSign;
+    M.m_FixedTimeInterval = cfg.m_FixedTimeInterval;
+    M.TotalTime = P[18] * P[17];
+
+    /* CHeart10View::OnPlay 와 같은 순서 */
+    M.InputAll();
+    M.DefInitialVarInput();
+    M.DefIonVar();
+    M.DefScaleVar();
+    M.INITIALSETTING();
+    M.DefInitialVarPreset();
+    M.calculatevm();                  // 매번 안정 상태에서 출발
+    M.NewCell = false;
+
+    var SS = M.TotalTime + P[16];
+    var vmax = -1e9, guard = 0;
+    do {
+        M.SetTimeInterval();
+        M.CalSteps();
+        if (M.Vm[1] > vmax) vmax = M.Vm[1];
+        guard++;
+    } while (M.CurrentTime <= SS && Math.abs(M.Vm[1]) <= 400 && guard < 400000);
+
+    return { vmax: vmax, dead: Math.abs(M.Vm[1]) > 400, rest: M.Erev };
+}
+
+/* 주어진 자극기간에서 활동전압을 일으키는 최소 전류 (이분법) */
+function thresholdFor(cfg, baseP, durMs, level, cap) {
+    var dir = cfg.stimSign < 0 ? 1 : -1;      // 탈분극이 되는 쪽 부호
+    var P = baseP.slice();
+    P[7] = durMs;                              // 펄스 2 지속시간
+    P[13] = 0; P[14] = 0;                      // 증분 없음
+    P[15] = 1; P[17] = 1;                      // 한 에피소드 · 한 자극
+    var span = P[1] + P[4] + P[7] + P[10] + P[12];
+    P[18] = Math.max(P[18], span);
+    P[16] = 0;
+
+    function fires(a) {
+        P[5] = dir * a; P[6] = dir * a;
+        return simulateOnce(cfg, P).vmax >= level;
+    }
+
+    /* 발화하는 상한을 먼저 찾는다 */
+    var hi = 0.05, n = 0;
+    while (!fires(hi)) {
+        hi *= 2; n++;
+        if (hi > cap || n > 40) return null;    // 이 기간에는 아무리 세게 줘도 안 남
+    }
+    var lo = 0;
+    for (n = 0; n < 18; n++) {                  // 0.001 % 수준까지 좁힌다
+        var mid = (lo + hi) / 2;
+        if (fires(mid)) hi = mid; else lo = mid;
+    }
+    return { dur: durMs, i: hi, totalTime: P[18] * P[17] };
+}
+
+/* 한 에피소드를 돌려 IKdr 시간경과를 기록한다 (전압고정 분석용).
+   dt 를 고정해 56 % 도달시간을 충분한 분해능으로 읽는다. */
+function recordEpisode(cfg, P, vcMode, dt) {
+    var M = new global.HeartModel(), k;
+
+    for (k = 0; k < 25; k++) M.SF[k] = cfg.SF[k];
+    for (k = 0; k < 10; k++) M.Ion[k] = cfg.Ion[k];
+    for (k = 0; k < 4; k++) M.Condition[k] = cfg.Condition[k];
+    for (k = 0; k < 19; k++) M.Pulse[k] = P[k];
+
+    M.cellNo = 1;
+    M.m_AP = vcMode ? 1 : 0;
+    M.bHH = cfg.bHH;
+    M.bConstantField = cfg.bConstantField;
+    M.stimSign = cfg.stimSign;
+    M.m_FixedTimeInterval = dt || 0;
+    M.TotalTime = P[18] * P[17];
+
+    M.InputAll();
+    M.DefInitialVarInput();
+    M.DefIonVar();
+    M.DefScaleVar();
+    M.INITIALSETTING();
+    M.DefInitialVarPreset();
+    M.calculatevm();
+    M.NewCell = false;
+
+    var SS = M.TotalTime + P[16];
+    var t = [], ik = [], nn = [], vm = [], guard = 0;
+    do {
+        M.SetTimeInterval();
+        M.CalSteps();
+        t.push(M.CurrentTime);
+        ik.push(M.ii[14][4][1]);        // IKdr (HH)
+        nn.push(M.m[14][6][1]);         // n gate
+        vm.push(M.Vm[1]);
+        guard++;
+    } while (M.CurrentTime <= SS && Math.abs(M.Vm[1]) <= 400 && guard < 400000);
+
+    return { t: t, ik: ik, n: nn, vm: vm, VK: M.VK[1] };
+}
+
+/* 한 지령전위에서 IK 활성화 시간상수를 잰다.
+   - 펄스 2 시작점부터 시간을 재고 (매뉴얼: holding length 는 빼야 함)
+   - 정상상태에 이르지 못하면 펄스 2 를 자동으로 늘린다 (매뉴얼의 -60 mV 주의사항)
+   - n^4 가 full 값의 56 % 에 닿는 시각 = 2 tau 이므로 tau = t56 / 2        */
+function tauForStep(cfg, baseP, vCmd, opts) {
+    var dt = (opts && opts.dt) || 0.02;
+    var capMs = (opts && opts.capMs) || 600;
+    var P = baseP.slice();
+    P[5] = vCmd; P[6] = vCmd;
+    P[13] = 0; P[14] = 0; P[15] = 1; P[17] = 1; P[16] = 0;
+
+    var dur = Math.max(baseP[7], 1), rec = null, t0, t1, iFull, ok = false, grew = false;
+
+    while (true) {
+        P[7] = dur;
+        var span = P[1] + P[4] + P[7] + P[10] + P[12];
+        P[18] = Math.max(baseP[18], span);
+        rec = recordEpisode(cfg, P, true, dt);
+
+        t0 = P[1] + P[4];
+        t1 = t0 + P[7];
+
+        var iAtEnd = null, iEarlier = null, j;
+        for (j = 0; j < rec.t.length; j++) {
+            if (rec.t[j] <= t1) iAtEnd = rec.ik[j];
+            if (rec.t[j] <= t1 - 0.25 * P[7]) iEarlier = rec.ik[j];
+        }
+        if (iAtEnd === null) return null;
+        iFull = iAtEnd;
+
+        /* 마지막 25 % 구간에서 0.5 % 미만으로 변하면 정상상태로 본다 */
+        ok = (iEarlier !== null) && Math.abs(iFull) > 1e-9 &&
+             Math.abs(iFull - iEarlier) / Math.abs(iFull) < 0.005;
+        if (ok || dur >= capMs) break;
+        dur *= 2; grew = true;
+    }
+
+    if (!(Math.abs(iFull) > 1e-9)) return null;
+
+    /* 56 % 도달 시각 (선형보간) */
+    var target = 0.56 * iFull, t56 = null, p;
+    for (p = 1; p < rec.t.length; p++) {
+        if (rec.t[p] < t0) continue;
+        if (rec.t[p] > t1) break;
+        var a = rec.ik[p - 1], b = rec.ik[p];
+        if ((a < target && b >= target) || (a > target && b <= target)) {
+            var f = (target - a) / ((b - a) || 1e-30);
+            t56 = rec.t[p - 1] + f * (rec.t[p] - rec.t[p - 1]);
+            break;
+        }
+    }
+    if (t56 === null) return null;
+
+    return { V: vCmd, t56: t56 - t0, tau: (t56 - t0) / 2,
+             Iss: iFull, dur: P[7], steady: ok, grew: grew, VK: rec.VK };
+}
+
+/* 주어진 전류에서 활동전압을 일으키는 최소 자극기간 (이분법).
+   chronaxie 의 정의 그대로 I = 2·Ir 을 넣어 직접 잰다. */
+function durationFor(cfg, baseP, amp, level, tmax) {
+    var dir = cfg.stimSign < 0 ? 1 : -1;
+    var P = baseP.slice();
+    P[13] = 0; P[14] = 0; P[15] = 1; P[17] = 1; P[16] = 0;
+    P[5] = dir * amp; P[6] = dir * amp;
+
+    function fires(t) {
+        P[7] = t;
+        var span = P[1] + P[4] + P[7] + P[10] + P[12];
+        P[18] = Math.max(baseP[18], span);
+        return simulateOnce(cfg, P).vmax >= level;
+    }
+
+    if (!fires(tmax)) return null;              // 이 전류로는 끝까지 안 남
+    var lo = 0, hi = tmax, mid, n;
+    for (n = 0; n < 22; n++) {
+        mid = (lo + hi) / 2;
+        if (fires(mid)) hi = mid; else lo = mid;
+    }
+    return hi;
+}
+
+/* I = Ir(1 + C/t)  →  I = Ir + (Ir·C)·(1/t)  :  1/t 에 대한 직선맞춤 */
+function fitStrengthDuration(pts) {
+    var n = pts.length, i, x, y;
+    if (n < 2) return null;
+    var sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (i = 0; i < n; i++) {
+        x = 1 / pts[i].dur; y = pts[i].i;
+        sx += x; sy += y; sxx += x * x; sxy += x * y;
+    }
+    var den = n * sxx - sx * sx;
+    if (Math.abs(den) < 1e-20) return null;
+    var slope = (n * sxy - sx * sy) / den;
+    var inter = (sy - slope * sx) / n;
+    if (!(inter > 0) || !(slope > 0)) return { Ir: inter, C: NaN, slope: slope, r2: NaN };
+
+    /* 결정계수 */
+    var mean = sy / n, ssTot = 0, ssRes = 0, f;
+    for (i = 0; i < n; i++) {
+        x = 1 / pts[i].dur;
+        f = inter + slope * x;
+        ssTot += (pts[i].i - mean) * (pts[i].i - mean);
+        ssRes += (pts[i].i - f) * (pts[i].i - f);
+    }
+    return { Ir: inter, C: slope / inter, slope: slope,
+             r2: ssTot > 0 ? 1 - ssRes / ssTot : NaN };
+}
+
+global.SD = {
+    simulateOnce: simulateOnce,
+    recordEpisode: recordEpisode,
+    thresholdFor: thresholdFor,
+    durationFor: durationFor,
+    tauForStep: tauForStep,
+    fit: fitStrengthDuration
+};
+
+})(window);
+
+</script>
+<script>
+/* ==== js/reconstruct.js ==== */
+/* ------------------------------------------------------------------
+ * reconstruct.js -- 활동전압 재구성 (매뉴얼 II-6)
+ *
+ * "m, n, h 에 대하여 막전압에 따른 alpha, beta 의 변화를 알아냈다면
+ *  이를 기반으로 어떻게 활동전압을 재구성할 수 있는가"
+ *
+ * 이 파일은 HeartModel 을 쓰지 않고 α·β 와 막방정식만으로 처음부터
+ * 적분한다.  그래야 "rate constant 만 있으면 활동전압이 나온다" 는
+ * 것이 코드에서도 드러난다.
+ *
+ *      dm/dt = α_m(V)(1−m) − β_m(V)m       (h, n 도 같은 꼴)
+ *      I_Na  = ḡ_Na·m³h·(V − E_Na)
+ *      I_K   = ḡ_K ·n⁴ ·(V − E_K)
+ *      C·dV/dt = −(I_Na + I_K + I_leak) + I_stim
+ * ------------------------------------------------------------------ */
+(function (global) {
+'use strict';
+
+var R = 8.3143, F = 96.4867;
+var exp = Math.exp, abs = Math.abs;
+
+/* --- Hodgkin-Huxley rate constants (heart10Doc.cpp 와 동일) --------- */
+function rates(V) {
+    var xm = 25 - V - 65, xn = 10 - V - 65;
+    return {
+        am: (abs(xm) < 1e-6) ? 1.0 : 0.1 * xm / (exp(xm / 10) - 1),
+        bm: 4 * exp((-65 - V) / 18),
+        ah: 0.07 * exp((-65 - V) / 20),
+        bh: 1 / (exp((30 - V - 65) / 10) + 1),
+        an: (abs(xn) < 1e-6) ? 0.1 : 0.01 * xn / (exp(xn / 10) - 1),
+        bn: 0.125 * exp((-V - 65) / 80)
+    };
+}
+
+/* 측정한 α_n·β_n 을 쓰는 경우: 막전압으로 선형보간 (양 끝은 고정) */
+function interpRate(pts, V, key) {
+    if (!pts || pts.length === 0) return null;
+    if (V <= pts[0].V) return pts[0][key];
+    if (V >= pts[pts.length - 1].V) return pts[pts.length - 1][key];
+    for (var i = 1; i < pts.length; i++) {
+        if (V <= pts[i].V) {
+            var f = (V - pts[i - 1].V) / ((pts[i].V - pts[i - 1].V) || 1e-30);
+            return pts[i - 1][key] + f * (pts[i][key] - pts[i - 1][key]);
+        }
+    }
+    return pts[pts.length - 1][key];
+}
+
+/* par:
+     gNa, gK, gLeak, rgLeakK   전도도 (nA/mV)
+     Cap                        막용량 (nF)
+     Nae, Nai, Ke, Ki, tempC    역전전위 계산용
+     Rseal                      MOhm
+     settle, t0, dur, amp, T, dt
+     measured                   II-4 에서 잰 {V, alpha, beta} 배열 (없으면 HH 식)
+*/
+function reconstruct(par) {
+    var RTF = R * (par.tempC + 273.15) / F;
+    var ENa = RTF * Math.log(par.Nae / par.Nai);
+    var EK = RTF * Math.log(par.Ke / par.Ki);
+
+    var dt = par.dt || 0.01;
+    var V = par.V0 !== undefined ? par.V0 : -67;
+    var r = rates(V);
+    var m = r.am / (r.am + r.bm);
+    var h = r.ah / (r.ah + r.bh);
+    var n = r.an / (r.an + r.bn);
+
+    var out = { t: [], V: [], m: [], h: [], n: [], gNa: [], gK: [],
+                INa: [], IK: [], dVdt: [], Istim: [], ENa: ENa, EK: EK };
+
+    var settle = par.settle || 0;          // 자극 전에 안정시키는 시간
+    var total = settle + par.T;
+    var t = 0, steps = Math.ceil(total / dt), i;
+
+    for (i = 0; i <= steps; i++) {
+        t = i * dt;
+        var tr = t - settle;               // 기록상의 시각 (자극 기준)
+
+        r = rates(V);
+        var an = r.an, bn = r.bn;
+        if (par.measured && par.measured.length) {
+            var ma = interpRate(par.measured, V, 'alpha');
+            var mb = interpRate(par.measured, V, 'beta');
+            if (ma !== null && isFinite(ma) && ma > 0) an = ma;
+            if (mb !== null && isFinite(mb) && mb > 0) bn = mb;
+        }
+
+        var gNa = par.gNa * m * m * m * h;
+        var gK = par.gK * n * n * n * n;
+        var INa = gNa * (V - ENa);
+        var IK = gK * (V - EK);
+        var ILeak = par.gLeak * (V - ENa) + par.gLeak * par.rgLeakK * (V - EK);
+        var Istim = (tr >= par.t0 && tr < par.t0 + par.dur) ? par.amp : 0;
+
+        /* 원본과 같은 부호 규약: 자극은 막전류에 더해지고 dV/dt = −Itot/C.
+           매뉴얼 기준(+ = 탈분극)이면 stimSign = −1 이 곱해져 있다. */
+        var Itot = INa + IK + ILeak + Istim * (par.stimSign || 1) + V / (par.Rseal || 1e5);
+        var dVdt = -Itot / par.Cap;
+
+        if (tr >= 0) {
+            out.t.push(tr); out.V.push(V); out.m.push(m); out.h.push(h); out.n.push(n);
+            out.gNa.push(gNa); out.gK.push(gK);
+            out.INa.push(INa); out.IK.push(IK); out.dVdt.push(dVdt);
+            out.Istim.push(Istim);
+        }
+
+        /* 게이트는 지수해, 막전압은 Euler (원본 CalSteps 와 같은 방식) */
+        var tm = 1 / (r.am + r.bm), th = 1 / (r.ah + r.bh), tn = 1 / (an + bn);
+        m += (r.am * (1 - m) - r.bm * m) * tm * (1 - exp(-dt / tm));
+        h += (r.ah * (1 - h) - r.bh * h) * th * (1 - exp(-dt / th));
+        n += (an * (1 - n) - bn * n) * tn * (1 - exp(-dt / tn));
+        V += dVdt * dt;
+
+        if (!isFinite(V) || abs(V) > 400) break;
+    }
+    return out;
+}
+
+/* 재구성 결과에서 설명에 쓸 주요 시점을 뽑는다 */
+function landmarks(res, stimT0) {
+    function at(idx, label) {
+        if (idx < 0 || idx >= res.t.length) return null;
+        return { label: label, t: res.t[idx], V: res.V[idx], m: res.m[idx],
+                 h: res.h[idx], n: res.n[idx], gNa: res.gNa[idx], gK: res.gK[idx],
+                 INa: res.INa[idx], IK: res.IK[idx], dVdt: res.dVdt[idx] };
+    }
+    var i, iStim = 0, iUp = 0, iPeak = 0, iDown, iAhp;
+    for (i = 0; i < res.t.length; i++) {
+        if (res.t[i] <= stimT0) iStim = i;
+        if (res.dVdt[i] > res.dVdt[iUp]) iUp = i;
+        if (res.V[i] > res.V[iPeak]) iPeak = i;
+    }
+    iDown = iPeak; iAhp = iPeak;
+    for (i = iPeak; i < res.t.length; i++) if (res.dVdt[i] < res.dVdt[iDown]) iDown = i;
+    for (i = iPeak; i < res.t.length; i++) if (res.V[i] < res.V[iAhp]) iAhp = i;
+
+    return [at(iStim, '자극 직전'), at(iUp, '최대 dV/dt (상승기)'),
+            at(iPeak, '정점 (overshoot)'), at(iDown, '최대 −dV/dt (재분극)'),
+            at(iAhp, 'AHP 최저'), at(res.t.length - 1, '회복')]
+           .filter(function (x) { return x; });
+}
+
+global.RECON = { reconstruct: reconstruct, rates: rates, landmarks: landmarks };
+
+})(window);
+
+</script>
+<script>
+/* ==== js/app.js ==== */
+/* ------------------------------------------------------------------
+ * app.js -- UI layer, port of CHeart10View (heart10View.cpp)
+ *
+ * Reproduces OnPlay() / RunLoop() / pointplotLine() of the original
+ * MFC view on top of HTML controls and two canvases.
+ * ------------------------------------------------------------------ */
+(function () {
+'use strict';
+
+/* ---------------- channel table (index -> label) ------------------ */
+var CHANNELS = [
+    { i: 3,  ko: '내향성 정류 K (IK1)',        en: 'Inward rectifier K' },
+    { i: 4,  ko: 'Na 통로 (INa, Luo-Rudy)',     en: 'Na channel' },
+    { i: 5,  ko: '빠른 지연정류 K (IKr)',       en: 'Rapid delayed rectifier K' },
+    { i: 6,  ko: '일과성 외향 K (Ito)',         en: 'Transient outward K' },
+    { i: 7,  ko: '지속성 외향 K (Isus)',        en: 'Sustained outward K' },
+    { i: 8,  ko: 'L형 Ca (ICaL)',               en: 'L-type Ca' },
+    { i: 9,  ko: 'T형 Ca (ICaT)',               en: 'T-type Ca' },
+    { i: 10, ko: '느린 지연정류 K (IKs)',       en: 'Slow delayed rectifier K' },
+    { i: 11, ko: '과분극 활성 (Ih)',            en: 'Hyperpolarisation activated' },
+    { i: 12, ko: 'ACh 활성 K (IKACh)',          en: 'ACh activated K' },
+    { i: 13, ko: 'Na 전류 (HH)  INa',           en: 'Na current (HH)' },
+    { i: 14, ko: 'K 전류 (HH)  IKdr',           en: 'K current (HH)' },
+    { i: 19, ko: '배경 Ca (IbCa)',              en: 'Background Ca' },
+    { i: 20, ko: '비선택 양이온 (leak)',        en: 'Nonselective cation' },
+    { i: 21, ko: 'Na-Ca 교환체',                en: 'Na-Ca exchanger' },
+    { i: 22, ko: 'Na-K 펌프',                   en: 'Na-K pump' }
+];
+
+/* SF file order -> SF[] index */
+var SF_INDEX = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 19, 20, 21, 22, 23];
+
+/* ------------------------------------------------------------------
+ * 실습 항목 -- 실습 매뉴얼(manual.html) 의 각 절에 맞춘 설정.
+ * 모든 실험은 "HH 모델 전용 계산" 을 해제한 상태에서 하므로 hh:false 가 기본이다.
+ * cur/vol 은 그 실험의 표시 범위.
+ * pulse 는 배포된 .prm 값을 실습 조건으로 덮어써야 하는 경우에만 쓴다.
+ * ------------------------------------------------------------------ */
+var MANUAL = [
+    { id: '', name: '— 직접 설정 —' },
+    { id: 'I-1', name: 'I-1. 단일 활동전압 · 역치 (APthreshold)',
+      prm: 'APthreshold', sfs: 'default', mode: 'ap',
+      cur: [-16, 16], vol: [-120, 80], show: [13, 14] },
+    { id: 'I-1b', name: 'I-1. 2)3) IKdr·INa 변화 (default)',
+      prm: 'default', sfs: 'default', mode: 'ap',
+      cur: [-16, 16], vol: [-120, 80], show: [13, 14] },
+    { id: 'I-2', name: 'I-2. 불응기 (RefractoryPeriod)',
+      prm: 'RefractoryPeriod', sfs: 'RefractoryPeriod', mode: 'ap',
+      cur: [-16, 16], vol: [-120, 80], show: [13, 14] },
+    { id: 'II-1', name: 'II-1. INa activation — 전압고정',
+      prm: 'VCstep4INa', sfs: 'small', mode: 'vc',
+      cur: [-20, 8], vol: [-120, 80], show: [13] },
+    { id: 'II-2', name: 'II-2. INa inactivation — 전압고정',
+      prm: 'VCstep4Inactivation', sfs: 'small', mode: 'vc',
+      cur: [-20, 8], vol: [-120, 80], show: [13] },
+    { id: 'II-3', name: 'II-3. IK activation — 전압고정',
+      prm: 'VCstep4IK', sfs: 'small', mode: 'vc',
+      cur: [-5, 55], vol: [-120, 80], show: [14] },
+    { id: 'III-1', name: 'III-1. 역치전류 · rheobase',
+      prm: 'rheobase', sfs: 'default', mode: 'ap',
+      cur: [-16, 16], vol: [-120, 80], show: [13, 14] },
+    { id: 'III-2', name: 'III-2. 순응 (accommodation)',
+      prm: 'Accommodation', sfs: 'Accommodation', mode: 'ap',
+      cur: [-1, 1], vol: [-120, 80], show: [13, 14],
+      /* 매뉴얼 본문: Pulse3 = 500 pA, Pulse2 증분 = 50 pA
+         (배포된 Accommodation.prm 은 400 pA / 100 pA 라 순응이 보이지 않음) */
+      pulse: { 8: 0.5, 9: 0.5, 13: 0.05 } },
+    { id: 'III-3', name: 'III-3. Anodal break',
+      prm: 'AnodalBreak', sfs: 'AnodalBreak', mode: 'ap',
+      cur: [-16, 16], vol: [-120, 80], show: [13, 14] }
+];
+
+var COLORS = PARAMS.COLORS;
+function col(i) { return COLORS[i] || '#000000'; }
+
+/* ---------------- state ------------------------------------------- */
+var model = new HeartModel();
+var graphCur, graphVol;
+
+var ui = {
+    check: {},          // channel index -> bool
+    checkItot: false,
+    checkCapacitive: false,
+    checkHH: true,
+    checkG: false,
+    checkNMH: false,
+    bErase: false,      // false = overlap episodes
+    record: true
+};
+
+var run = {
+    active: false,
+    paused: false,
+    episodeStarted: false,
+    finished: true,
+    raf: 0,
+    fast: false
+};
+
+var m_TotalTime = 0, SSInterval = 0;
+var recorded = [];      // { header:string } or { row:[] }
+var recordCols = [];
+
+/* ---------------- small DOM helpers ------------------------------- */
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+}
+function num(id) { return parseFloat($(id).value) || 0; }
+
+/* ---------------- build the parameter panels ---------------------- */
+function buildParamTable(container, names, prefix, values, decimals) {
+    container.innerHTML = '';
+    names.forEach(function (n, k) {
+        var row = el('div', 'prow');
+        var lab = el('label', null, n);
+        lab.htmlFor = prefix + k;
+        var inp = document.createElement('input');
+        inp.type = 'number'; inp.step = 'any'; inp.id = prefix + k;
+        inp.value = fixed(values[k], decimals);
+        row.appendChild(lab); row.appendChild(inp);
+        container.appendChild(row);
+    });
+}
+function fixed(v, d) {
+    if (v === undefined || v === null || isNaN(v)) v = 0;
+    return Number(v).toFixed(d);
+}
+
+/* ------------------------------------------------------------------
+ * 펄스 패널 -- 19개 값을 구간별로 묶고 단위를 붙인다.  진폭 단위는
+ * 클램프 모드에 따라 nA(전류고정) / mV(전압고정) 로 바뀐다.
+ * ------------------------------------------------------------------ */
+var PULSE_GROUPS = [
+    { t: '유지 (Holding)',   items: [[0, 'A', '유지 준위'], [1, 'ms', '유지 시간']] },
+    { t: '펄스 1',           items: [[2, 'A', '시작'], [3, 'A', '끝'], [4, 'ms', '지속시간']] },
+    { t: '펄스 2',           items: [[5, 'A', '시작'], [6, 'A', '끝'], [7, 'ms', '지속시간']] },
+    { t: '펄스 3',           items: [[8, 'A', '시작'], [9, 'A', '끝'], [10, 'ms', '지속시간']] },
+    { t: '복귀 (Return)',    items: [[11, 'A', '복귀 준위'], [12, 'ms', '복귀 시간']] },
+    { t: '에피소드마다 증가', items: [[13, 'A', '펄스 2 진폭 증분'], [14, 'ms', '펄스 2 시간 증분']] },
+    { t: '반복',             items: [[15, '회', '에피소드 수'], [16, 's', '에피소드 간격'],
+                                     [17, '회', '자극 수'], [18, 's', '자극 간격']] }
+];
+
+function buildPulsePanel(values) {
+    var box = $('pulseFields');
+    box.innerHTML = '';
+    PULSE_GROUPS.forEach(function (g) {
+        box.appendChild(el('div', 'phead', g.t));
+        g.items.forEach(function (it) {
+            var k = it[0];
+            var row = el('div', 'prow');
+            var lab = el('label', null, it[2]);
+            lab.htmlFor = 'pul' + k;
+            lab.title = PARAMS.PRM_NAMES[k] || '';
+            var inp = document.createElement('input');
+            inp.type = 'number'; inp.step = 'any'; inp.id = 'pul' + k;
+            inp.value = fixed(values[k], 2);
+            inp.addEventListener('input', drawPulsePreview);
+            var u = el('span', 'unit', it[1] === 'A' ? '' : it[1]);
+            if (it[1] === 'A') u.dataset.amp = '1';
+            row.appendChild(lab); row.appendChild(inp); row.appendChild(u);
+            box.appendChild(row);
+        });
+    });
+    updatePulseUnits();
+}
+
+function ampUnit() {
+    return document.querySelector('input[name="mode"]:checked').value === 'vc' ? 'mV' : 'nA';
+}
+
+function updatePulseUnits() {
+    var u = ampUnit();
+    Array.prototype.forEach.call(document.querySelectorAll('#pulseFields .unit[data-amp]'),
+        function (s) { s.textContent = u; });
+}
+
+/* stimulus level at time t -- mirrors CHeart10Doc::DefSteps */
+function stimAt(P, t) {
+    var A = P[0];
+    var per = P[18] > 0 ? P[18] : 1;
+    var w = (t / per - Math.trunc(t / per)) * per;
+    if (w >= 0 && w <= P[1]) A = P[0];
+    if (w > P[1] && w <= (P[4] + P[1])) A = (P[3] - P[2]) * (w - P[1]) / P[4] + P[2];
+    if (w > (P[1] + P[4]) && w <= (P[1] + P[4] + P[7]))
+        A = (P[6] - P[5]) * (w - P[1] - P[4]) / P[7] + P[5];
+    if (w > (P[1] + P[4] + P[7]) && w <= (P[1] + P[4] + P[7] + P[10]))
+        A = (P[9] - P[8]) * (w - P[1] - P[4] - P[7]) / P[10] + P[8];
+    if (w > (P[1] + P[4] + P[7] + P[10]) && w <= (P[1] + P[4] + P[7] + P[10] + P[12])) A = P[11];
+    if (w > (P[1] + P[4] + P[7] + P[10] + P[12])) A = P[0];
+    if (t > (P[18] * P[17])) A = P[0];
+    return A;
+}
+
+/* live schematic of the stimulus protocol -- episode 1 solid, last dashed */
+function drawPulsePreview() {
+    var cv = $('pulsePreview');
+    if (!cv) return;
+    var P = [], k;
+    for (k = 0; k < 19; k++) P[k] = num('pul' + k);
+    P[16] *= 1000; P[18] *= 1000;                       // sec -> ms, as the view does
+    var span = P[1] + P[4] + P[7] + P[10] + P[12];
+    if (P[18] < span) P[18] = span;
+
+    var total = P[18] * P[17];
+    if (!(total > 0)) total = span || 1;
+    var nEp = Math.max(1, Math.trunc(P[15]) || 1);
+
+    var Q = P.slice();
+    Q[5] += P[13] * (nEp - 1); Q[6] += P[13] * (nEp - 1); Q[7] += P[14] * (nEp - 1);
+    var qspan = Q[1] + Q[4] + Q[7] + Q[10] + Q[12];
+    if (Q[18] < qspan) Q[18] = qspan;
+    var qtotal = Math.max(total, Q[18] * Q[17]);
+
+    var N = 600, i, t, lo = Infinity, hi = -Infinity, a = [], b = [];
+    var tmax = Math.max(total, qtotal);
+    for (i = 0; i <= N; i++) {
+        t = tmax * i / N;
+        a.push(stimAt(P, t));
+        b.push(nEp > 1 ? stimAt(Q, t) : null);
+    }
+    a.concat(b).forEach(function (v) {
+        if (v === null || !isFinite(v)) return;
+        if (v < lo) lo = v; if (v > hi) hi = v;
+    });
+    if (!isFinite(lo)) { lo = -1; hi = 1; }
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.18; lo -= pad; hi += pad;
+
+    var dpr = window.devicePixelRatio || 1;
+    var rect = cv.getBoundingClientRect();
+    var W = Math.max(60, Math.round(rect.width)), H = Math.max(40, Math.round(rect.height));
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    var c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+
+    var L = 34, R = 6, T = 12, B = 16;
+    function X(tt) { return L + (tt / tmax) * (W - L - R); }
+    function Y(v) { return T + (hi - v) / (hi - lo) * (H - T - B); }
+
+    c.strokeStyle = '#d7dbe0'; c.lineWidth = 1;
+    c.strokeRect(L + 0.5, T + 0.5, W - L - R - 1, H - T - B - 1);
+
+    if (lo < 0 && hi > 0) {                              // zero line
+        c.strokeStyle = '#c8ced5'; c.setLineDash([2, 3]);
+        c.beginPath(); c.moveTo(L, Y(0)); c.lineTo(W - R, Y(0)); c.stroke();
+        c.setLineDash([]);
+    }
+
+    /* phase boundaries + labels */
+    var bounds = [0, P[1], P[1] + P[4], P[1] + P[4] + P[7],
+                  P[1] + P[4] + P[7] + P[10], P[1] + P[4] + P[7] + P[10] + P[12]];
+    var names = ['H', 'P1', 'P2', 'P3', 'R'];
+    c.font = '9px "Segoe UI", Arial, sans-serif';
+    c.textBaseline = 'top';
+    for (i = 0; i < 5; i++) {
+        if (bounds[i + 1] - bounds[i] <= 0 || bounds[i] > tmax) continue;
+        c.strokeStyle = '#e6eaef'; c.setLineDash([2, 3]);
+        c.beginPath(); c.moveTo(X(Math.min(bounds[i + 1], tmax)), T);
+        c.lineTo(X(Math.min(bounds[i + 1], tmax)), H - B); c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = '#8a949f'; c.textAlign = 'center';
+        var cx = X(Math.min((bounds[i] + bounds[i + 1]) / 2, tmax));
+        if (cx > L + 6 && cx < W - R - 6) c.fillText(names[i], cx, T + 1);
+    }
+
+    function poly(arr, style, dash) {
+        c.strokeStyle = style; c.lineWidth = dash ? 1 : 1.6; c.setLineDash(dash || []);
+        c.beginPath();
+        for (var j = 0; j <= N; j++) {
+            if (arr[j] === null) continue;
+            var xx = X(tmax * j / N), yy = Y(arr[j]);
+            if (j === 0) c.moveTo(xx, yy); else c.lineTo(xx, yy);
+        }
+        c.stroke(); c.setLineDash([]);
+    }
+    if (nEp > 1) poly(b, '#9db6cf', [4, 3]);
+    poly(a, '#1b6ec2', null);
+
+    /* axis labels */
+    c.fillStyle = '#68727f'; c.font = '9px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    c.fillText(hi.toFixed(2), L - 3, Y(hi) + 4);
+    c.fillText(lo.toFixed(2), L - 3, Y(lo) - 4);
+    c.textAlign = 'left'; c.textBaseline = 'bottom';
+    c.fillText('0', L, H - 3);
+    c.textAlign = 'right';
+    c.fillText(tmax.toFixed(0) + ' ms', W - R, H - 3);
+
+    var u = ampUnit();
+    $('pulseCap').innerHTML =
+        '실선 = 1번째 에피소드' + (nEp > 1 ? ', 점선 = ' + nEp + '번째' : '') +
+        ' · 기록 구간 <b>' + total.toFixed(0) + ' ms</b> · 에피소드 <b>' + nEp + '</b>회' +
+        '<br>H 유지 ' + P[1] + ' ms · P1 ' + P[4] + ' ms · P2 ' + P[7] + ' ms (' +
+        P[5].toFixed(2) + ' ' + u + ') · P3 ' + P[10] + ' ms · R 복귀 ' + P[12] + ' ms';
+}
+
+/* ---- episode shading -------------------------------------------- */
+var epShadeF = 1;
+
+function shadeColor(hex, f) {
+    if (f >= 0.999) return hex;
+    var r = parseInt(hex.substr(1, 2), 16),
+        g = parseInt(hex.substr(3, 2), 16),
+        b = parseInt(hex.substr(5, 2), 16);
+    function mix(v) { return Math.round(255 - (255 - v) * f); }
+    function hx(v) { return ('0' + v.toString(16)).slice(-2); }
+    return '#' + hx(mix(r)) + hx(mix(g)) + hx(mix(b));
+}
+function tc(i) { return shadeColor(col(i), epShadeF); }
+
+function updateEpLegend() {
+    var base = col(13);
+    $('epLegend').style.background =
+        'linear-gradient(to right,' + shadeColor(base, 0.35) + ',' + base + ')';
+    $('epLegend').style.opacity = $('chkEpColor').checked ? '1' : '0.25';
+}
+
+function buildChannelList() {
+    var box = $('channelList');
+    box.innerHTML = '';
+    CHANNELS.forEach(function (ch) {
+        /* 실습에서 쓰는 두 HH 전류를 눈에 띄게 */
+        var row = el('label', 'chrow' + (ch.i === 13 || ch.i === 14 ? ' hh' : ''));
+        var cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.id = 'chk' + ch.i;
+        cb.checked = (ch.i === 13 || ch.i === 14);
+        ui.check[ch.i] = cb.checked;
+        cb.addEventListener('change', function () { ui.check[ch.i] = cb.checked; });
+        var sw = el('span', 'swatch');
+        sw.style.background = col(ch.i);
+        row.appendChild(cb); row.appendChild(sw);
+        row.appendChild(el('span', 'chname', ch.ko));
+        box.appendChild(row);
+    });
+}
+
+function applyManual(id) {
+    var e = null, k;
+    for (k = 0; k < MANUAL.length; k++) if (MANUAL[k].id === id) e = MANUAL[k];
+    if (!e || !e.prm) return;
+
+    applyPrm(e.prm);   $('selPrm').value = e.prm;
+    applySfs(e.sfs);   $('selSfs').value = e.sfs;
+    if (e.pulse) {
+        for (k in e.pulse) if (e.pulse.hasOwnProperty(k)) $('pul' + k).value = fixed(e.pulse[k], 2);
+    }
+
+    document.querySelector('input[name="mode"][value="' + e.mode + '"]').checked = true;
+
+    /* 매뉴얼: 모든 실험은 HH model 체크박스를 해제한 상태에서 */
+    $('chkHH').checked = false;
+    $('chkG').checked = false;
+    $('chkNMH').checked = false;
+    $('chkOverlap').checked = true;
+
+    CHANNELS.forEach(function (ch) {
+        var on = e.show.indexOf(ch.i) >= 0;
+        $('chk' + ch.i).checked = on;
+        ui.check[ch.i] = on;
+    });
+    $('chkItot').checked = false;
+
+    $('curMin').value = e.cur[0];  $('curMax').value = e.cur[1];
+    $('volMin').value = e.vol[0];  $('volMax').value = e.vol[1];
+
+    model.NewCell = true;          // 매뉴얼의 "Try New Cell" 과 같은 상태에서 시작
+    inputValueFromControl();
+    initializeGraphCtrl();
+    updatePulseUnits();
+    drawPulsePreview();
+    setStatus(e.name + ' 설정 완료 — [실행] 또는 F2 를 누르세요.');
+}
+
+function buildPresetSelects() {
+    var p = $('selPrm'), s = $('selSfs'), k;
+    MANUAL.forEach(function (e) { $('selManual').appendChild(new Option(e.name, e.id)); });
+    Object.keys(PARAMS.PRM).sort().forEach(function (k) {
+        p.appendChild(new Option(k, k));
+    });
+    Object.keys(PARAMS.SFS).sort().forEach(function (k) {
+        s.appendChild(new Option(k, k));
+    });
+    p.value = 'default';
+    s.value = 'default';
+}
+
+/* ---------------- read the panels into the model ------------------ */
+function readPulse() {
+    var P = [], k;
+    for (k = 0; k < 19; k++) P[k] = num('pul' + k);
+    /* CHeart10View::InputValueFromPULSE -- episode/stimulus interval sec -> ms */
+    P[16] = 1000.0 * P[16];
+    P[18] = 1000.0 * P[18];
+    var sum = P[1] + P[4] + P[7] + P[10] + P[12];
+    if (P[18] < sum) {
+        P[18] = sum;
+        $('pul18').value = (P[18] / 1000.0).toFixed(3);
+    }
+    return P;
+}
+
+function inputValueFromControl() {
+    var k;
+    var P = readPulse();
+    for (k = 0; k < 19; k++) model.Pulse[k] = P[k];
+
+    for (k = 0; k < SF_INDEX.length; k++) model.SF[SF_INDEX[k]] = num('sf' + k);
+    for (k = 0; k < 7; k++) model.Ion[k] = num('ion' + k);
+    for (k = 0; k < 4; k++) model.Condition[k] = num('con' + k);
+
+    m_TotalTime = model.Pulse[18] * model.Pulse[17];
+    SSInterval  = m_TotalTime + model.Pulse[16];
+
+    model.TotalTime = m_TotalTime;
+    model.m_AP = document.querySelector('input[name="mode"]:checked').value === 'vc' ? 1 : 0;
+    model.m_FixedTimeInterval = num('fixedDt');
+
+    ui.checkItot       = $('chkItot').checked;
+    ui.checkCapacitive = $('chkCap').checked;
+    ui.checkHH         = $('chkHH').checked;
+    ui.checkG          = $('chkG').checked;
+    ui.checkNMH        = $('chkNMH').checked;
+    ui.bErase          = !$('chkOverlap').checked;
+    ui.record          = $('chkRecord').checked;
+    run.fast           = $('chkFast').checked;
+    model.bHH          = ui.checkHH;
+    model.bUserRate    = false;
+    model.bConstantField = ($('selDrive').value === 'cf');
+    model.stimSign = parseFloat($('selSign').value) || 1;
+}
+
+/* The driving-force selector only reaches INa(HH)/IKdr(HH) on the pure-HH
+   path.  On the cell path those two currents are always constant-field, so
+   say so instead of letting the control look as if it did nothing. */
+function updateDriveNote() {
+    var el = $('driveNote');
+    if (!el) return;
+    if ($('chkHH').checked) {
+        el.innerHTML = $('selDrive').value === 'cf'
+            ? '지금 <b>정전장(GHK)</b> — 세포 안팎 농도차를 반영해 I–V 가 휘어집니다. ' +
+              '막전류는 더 현실적이지만 <code>G = I/(V−E)</code> 가 m³h·n⁴ 에 ' +
+              '정확히 비례하지 않습니다.'
+            : '지금 <b>옴형</b> — HH 원논문과 같은 형태라 <code>G = I/(V−E)</code> 가 ' +
+              'm³h·n⁴ 에 정확히 비례합니다. II 장의 분석을 재현하기에 알맞습니다.';
+    } else {
+        el.innerHTML = '<b>“HH 모델 전용 계산”을 켰을 때만 적용됩니다.</b> ' +
+            '지금(해제 상태)은 INa(HH)·IKdr(HH) 가 언제나 <b>정전장</b>으로 계산됩니다.';
+    }
+}
+
+/* ---------------- graphs ------------------------------------------ */
+function initializeGraphCtrl() {
+    graphCur.setXYRange(0, num('curMin'), m_TotalTime, num('curMax'));
+    graphVol.setXYRange(0, num('volMin'), m_TotalTime, num('volMax'));
+    convertUnit();
+    graphCur.clear(true);
+    graphVol.clear(true);
+}
+
+function convertUnit() {
+    /* CHeart10View::ConvertUnit -- axis titles only (values stay in ms / nA) */
+    var xUnit = (Math.abs(graphCur.maxX) > 1000 || Math.abs(graphCur.minX) > 1000) ? 'ms' : 'ms';
+    graphCur.xUnit = xUnit; graphVol.xUnit = xUnit;
+    graphCur.yUnit = ui.checkNMH ? 'gate' : (ui.checkG ? 'nS x10' : 'nA');
+    graphVol.yUnit = 'mV';
+    graphCur.gridColor = col(16); graphVol.gridColor = col(16);
+    graphCur.bgColor = col(18);   graphVol.bgColor = col(18);
+    graphCur.labelColor = col(17); graphVol.labelColor = col(17);
+}
+
+/* ------------------------------------------------------------------
+ * trace store -- every plotted sample, per trace and per episode, so the
+ * cursor can report exact values and the measurement table can find
+ * peaks without the student having to read pixels off the screen.
+ * ------------------------------------------------------------------ */
+var traces = { order: [], meta: {}, eps: [], epInfo: [] };
+
+function traceReset() { traces = { order: [], meta: {}, eps: [], epInfo: [] }; }
+
+function traceNewEpisode(info) {
+    traces.eps.push({});
+    traces.epInfo.push(info);
+}
+
+function traceAdd(key, label, color, graph, unit, t, v) {
+    if (!traces.meta[key]) {
+        traces.meta[key] = { label: label, color: color, graph: graph, unit: unit };
+        traces.order.push(key);
+    }
+    var e = traces.eps[traces.eps.length - 1];
+    if (!e) return;
+    var s = e[key] || (e[key] = { t: [], v: [] });
+    s.t.push(t); s.v.push(v);
+}
+
+/* nearest sample at time t (series time is monotonic within an episode) */
+function traceValueAt(epIndex, key, t) {
+    var e = traces.eps[epIndex];
+    if (!e) return null;
+    var s = e[key];
+    if (!s || !s.t.length) return null;
+    var lo = 0, hi = s.t.length - 1, mid;
+    if (t <= s.t[0]) return { t: s.t[0], v: s.v[0] };
+    if (t >= s.t[hi]) return { t: s.t[hi], v: s.v[hi] };
+    while (hi - lo > 1) {
+        mid = (lo + hi) >> 1;
+        if (s.t[mid] <= t) lo = mid; else hi = mid;
+    }
+    var pick = (t - s.t[lo] <= s.t[hi] - t) ? lo : hi;
+    return { t: s.t[pick], v: s.v[pick] };
+}
+
+/* previous plotted values, for the m/h/n and conductance traces */
+var mpre = 0, hpre = 0, npre = 0, gnapre = 0, gkpre = 0;
+
+function pointplotLine(record) {
+    var M = model;
+    var tnow = M.CurrentTime, dt = M.timeinterval;
+    var row = record ? [tnow.toFixed(2)] : null;
+    var L;
+
+    /* 원본은 게이트/전도도 표시를 `checkHH && checkNMH` 로 묶어 두었지만,
+       매뉴얼은 HH 체크박스를 해제한 상태에서 Gate·Conductance 를 켜라고
+       지시하므로 표시 조건을 계산 경로와 분리했다 (표시 전용 변경). */
+    if (ui.checkNMH) {
+        var mnow = M.m[13][6][1], hnow = M.h[13][6][1], nnow = M.m[14][6][1];
+        if (ui.check[13]) {
+            graphCur.appendPoint(tnow - dt, mpre, tnow, mnow, tc(13), 1);
+            graphCur.appendPoint(tnow - dt, hpre, tnow, hnow, tc(4), 1);
+            traceAdd('m', 'm', col(13), 'cur', '', tnow, mnow);
+            traceAdd('h', 'h', col(4), 'cur', '', tnow, hnow);
+        }
+        if (ui.check[14]) {
+            graphCur.appendPoint(tnow - dt, npre, tnow, nnow, tc(14), 1);
+            traceAdd('n', 'n', col(14), 'cur', '', tnow, nnow);
+        }
+        if (record) row.push(mnow.toFixed(4), hnow.toFixed(4), nnow.toFixed(4));
+        mpre = mnow; hpre = hnow; npre = nnow;
+    } else if (ui.checkG) {
+        var vm = M.Vm[1], vna = M.VNa[1], vk = M.VK[1];
+        var nacf = vm - vna, kcf = vm - vk;
+        var gnanow = M.ii[13][4][1] / nacf * 10;
+        var gknow  = M.ii[14][4][1] / kcf * 10;
+        if (ui.check[13]) {
+            graphCur.appendPoint(tnow - dt, gnapre, tnow, gnanow, tc(13), 1);
+            traceAdd('gNa', 'gNa×10', col(13), 'cur', 'nS', tnow, gnanow);
+        }
+        if (ui.check[14]) {
+            graphCur.appendPoint(tnow - dt, gkpre, tnow, gknow, tc(14), 1);
+            traceAdd('gK', 'gK×10', col(14), 'cur', 'nS', tnow, gknow);
+        }
+        if (record) row.push(gnanow.toFixed(4), gknow.toFixed(4));
+        gnapre = gnanow; gkpre = gknow;
+    } else {
+        for (L = 3; L <= 14; L++) {
+            if (ui.check[L]) {
+                if (record) row.push(M.ii[L][4][1].toFixed(4));
+                graphCur.appendPoint(tnow - dt, M.ii[L][5][1], tnow, M.ii[L][4][1], tc(L), 1);
+                traceAdd('i' + L, shortNameOf(L), col(L), 'cur', 'nA', tnow, M.ii[L][4][1]);
+            }
+        }
+    }
+
+    for (L = 19; L <= 22; L++) {
+        if (ui.check[L]) {
+            if (record) row.push(M.ii[L][4][1].toFixed(4));
+            graphCur.appendPoint(tnow - dt, M.ii[L][5][1], tnow, M.ii[L][4][1], tc(L), 1);
+            traceAdd('i' + L, shortNameOf(L), col(L), 'cur', 'nA', tnow, M.ii[L][4][1]);
+        }
+    }
+
+    var Inet = M.Itot[1], Inetb = M.Itotb[1];
+    if (!ui.checkCapacitive && model.m_AP === 1) {
+        Inetb = Inetb - M.Icapb[1];
+        Inet  = Inet - M.Icap[1];
+    }
+    if (ui.checkItot) {
+        if (record) row.push(Inet.toFixed(4));
+        graphCur.appendPoint(tnow - dt, Inetb, tnow, Inet, tc(23), 1);
+        traceAdd('itot', 'Itot', col(23), 'cur', 'nA', tnow, Inet);
+    }
+
+    if (record) row.push(M.Vm[1].toFixed(2));
+    graphVol.appendPoint(tnow - dt, M.C[6][7][1], tnow, M.Vm[1], tc(13), 1);
+    traceAdd('vm', 'Vm', col(13), 'vol', 'mV', tnow, M.Vm[1]);
+
+    if (record) recorded.push(row);
+}
+
+function buildRecordColumns() {
+    var c = ['time(ms)'], L;
+    if (ui.checkNMH) {
+        c = ['time(ms)', 'm', 'h', 'n'];
+    } else if (ui.checkG) {
+        c = ['time(ms)', 'gNa*10', 'gK*10'];
+    } else {
+        for (L = 3; L <= 14; L++) if (ui.check[L]) c.push(nameOf(L));
+    }
+    for (L = 19; L <= 22; L++) if (ui.check[L]) c.push(nameOf(L));
+    if (ui.checkItot) c.push('Itot(nA)');
+    c.push('Vm(mV)');
+    recordCols = c;
+}
+function nameOf(i) {
+    for (var k = 0; k < CHANNELS.length; k++) if (CHANNELS[k].i === i) return CHANNELS[k].en;
+    return 'I' + i;
+}
+
+var SHORT = {
+    3: 'IK1', 4: 'INa', 5: 'IKr', 6: 'Ito', 7: 'Isus', 8: 'ICaL', 9: 'ICaT',
+    10: 'IKs', 11: 'Ih', 12: 'IKACh', 13: 'INa(HH)', 14: 'IKdr(HH)',
+    19: 'IbCa', 20: 'INSC', 21: 'INaCa', 22: 'INaK'
+};
+function shortNameOf(i) { return SHORT[i] || ('I' + i); }
+
+/* ---------------- run loop (CHeart10View::RunLoop) ---------------- */
+function onPlay() {
+    if (run.active) return;
+    inputValueFromControl();
+    initializeGraphCtrl();          // also resets the X window to 0..TotalTime
+    recorded = [];
+    buildRecordColumns();
+    traceReset();
+    clearMarksForRun();
+    measureWin = null;
+    $('measureWin').hidden = true;
+    epShadeF = 1;
+    setProgress(0);
+    $('measureBox').hidden = true;
+
+    model.cellNo = 1;
+    model.InputAll();
+    model.DefInitialVarInput();
+    model.DefIonVar();
+    model.DefScaleVar();
+    model.INITIALSETTING();
+    if (model.NewCell) model.DefInitialVarPreset();
+
+    model.episodeN = 0;
+    if (model.NewCell) {
+        model.calculatevm();
+        model.NewCell = false;
+    }
+    mpre = model.m[13][6][1]; hpre = model.h[13][6][1]; npre = model.m[14][6][1];
+    gnapre = 0; gkpre = 0;
+
+    run.active = true; run.paused = false; run.finished = false; run.episodeStarted = false;
+    setStatus('계산 중 …');
+    updateButtons();
+
+    if (run.fast) {
+        var t0 = performance.now();
+        while (run.active && !run.finished) stepChunk(1e9);
+        finishRun('완료 (' + Math.round(performance.now() - t0) + ' ms)');
+    } else {
+        run.raf = requestAnimationFrame(tick);
+    }
+}
+
+function startEpisode() {
+    if (ui.bErase) {
+        graphCur.clear(true);
+        graphVol.clear(true);
+    }
+    var nEp = Math.max(1, Math.trunc(model.Pulse[15]) || 1);
+    epShadeF = ($('chkEpColor').checked && nEp > 1)
+        ? 0.35 + 0.65 * (model.episodeN / (nEp - 1)) : 1;
+    traceNewEpisode({
+        n: 1 + model.episodeN,
+        vc: model.m_AP === 1,
+        p2: model.Pulse[5],          // AP mode: nA, VC mode: mV
+        p2len: model.Pulse[7],
+        p1: model.Pulse[2],
+        p3: model.Pulse[8]
+    });
+    var str = '#' + (1 + model.episodeN) + ' / ' + Math.trunc(model.Pulse[15]) + ' episode';
+    graphCur.putText(0.1, 0.02, str, '#0000c0', true);
+    if (ui.record) recorded.push(['[' + str + ']']);
+    run.episodeStarted = true;
+}
+
+/* One chunk of integration.  budget = milliseconds of wall time. */
+function stepChunk(budget) {
+    var t0 = performance.now();
+    var M = model;
+    do {
+        if (!run.episodeStarted) startEpisode();
+
+        /* inner do-while of RunLoop */
+        do {
+            M.SetTimeInterval();
+            M.CalSteps();
+            if (M.CurrentTime <= m_TotalTime) pointplotLine(ui.record);
+            if (performance.now() - t0 > budget) return;
+        } while (M.CurrentTime <= SSInterval && Math.abs(M.Vm[1]) <= 400);
+
+        if (Math.abs(M.Vm[1]) > 400) {
+            graphVol.putText(0.1, 0.02,
+                'Cell Death !   Cell Death !   Cell Death !', '#c00000', true);
+            M.NewCell = true;
+        }
+        M.PrepareNextPulse();
+        run.episodeStarted = false;
+        displayIonConc();
+
+        if (M.episodeN >= M.Pulse[15]) { run.finished = true; return; }
+    } while (performance.now() - t0 <= budget);
+}
+
+function tick() {
+    if (!run.active) return;
+    if (!run.paused) {
+        stepChunk(14);
+        setProgress((model.episodeN + Math.min(1, model.CurrentTime / (SSInterval || 1))) /
+                    Math.max(1, model.Pulse[15]));
+        if (run.finished) { finishRun('완료'); return; }
+    }
+    run.raf = requestAnimationFrame(tick);
+}
+
+function finishRun(msg) {
+    run.active = false;
+    run.finished = true;
+    cancelAnimationFrame(run.raf);
+    var tail = msg + '  —  ' + (recorded.length ? (recorded.length + ' 행 기록됨') : '기록 없음');
+    var fit = $('chkAutoScale').checked ? autoScale('both') : null;
+    setStatus(fit ? (tail + '  ·  ' + fit) : tail);
+    fillEpisodeSelect();
+    setProgress(1);
+    updateButtons();
+}
+
+function onStopToggle() {
+    if (!run.active) return;
+    run.paused = !run.paused;
+    setStatus(run.paused ? '일시정지 (Stop) — 다시 누르면 계속' : '계산 중 …');
+    updateButtons();
+}
+
+function onAbort() {
+    if (!run.active) return;
+    finishRun('중단됨');
+}
+
+function displayIonConc() {
+    $('ionReadout').textContent =
+        'Ki ' + model.C[1][6][1].toFixed(2) + ' mM   ' +
+        'Nai ' + model.C[2][6][1].toFixed(3) + ' mM   ' +
+        'Cai(free) ' + (model.Caf[1] * 1000).toFixed(4) + ' uM   ' +
+        'Vm ' + model.Vm[1].toFixed(2) + ' mV   ' +
+        'dt ' + model.timeinterval.toFixed(3) + ' ms';
+}
+
+function setStatus(s) { $('status').textContent = s; }
+function setProgress(f) {
+    $('progBar').style.width = Math.max(0, Math.min(1, f || 0)) * 100 + '%';
+}
+function updateButtons() {
+    $('btnPlay').disabled = run.active;
+    $('btnStop').disabled = !run.active;
+    $('btnAbort').disabled = !run.active;
+    $('btnStop').innerHTML = (run.paused ? '▶ 계속' : '❚❚ 일시정지') +
+        ' <span class="kbd">Space</span>';
+}
+
+/* ---------------- preset / file loading --------------------------- */
+function applyPrm(name) {
+    var v = PARAMS.PRM[name];
+    if (!v) return;
+    for (var k = 0; k < 19; k++) $('pul' + k).value = fixed(v[k], 2);
+    drawPulsePreview();
+}
+function applySfs(name) {
+    var v = PARAMS.SFS[name];
+    if (!v) return;
+    for (var k = 0; k < 17; k++) $('sf' + k).value = fixed(v[k], 2);
+}
+
+/* Parse a *.prm / *.sfs / *.ion / *.con file the way CFileIO does:
+   everything after the first '=' on each line, spaces removed. */
+function parseParamFile(text) {
+    var out = [];
+    text.split(/\r?\n/).forEach(function (line) {
+        var p = line.indexOf('=');
+        if (p < 0) return;
+        var v = parseFloat(line.slice(p + 1).replace(/\s+/g, ''));
+        out.push(isNaN(v) ? 0 : v);
+    });
+    return out;
+}
+
+function loadUserFile(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+        var vals = parseParamFile(String(reader.result));
+        var ext = (file.name.split('.').pop() || '').toLowerCase();
+        var k;
+        if (ext === 'prm') {
+            for (k = 0; k < 19 && k < vals.length; k++) $('pul' + k).value = fixed(vals[k], 2);
+        } else if (ext === 'sfs') {
+            for (k = 0; k < 17 && k < vals.length; k++) $('sf' + k).value = fixed(vals[k], 2);
+        } else if (ext === 'ion') {
+            for (k = 0; k < 7 && k < vals.length; k++) $('ion' + k).value = fixed(vals[k], 4);
+        } else if (ext === 'con') {
+            for (k = 0; k < 4 && k < vals.length; k++) $('con' + k).value = fixed(vals[k], 2);
+        } else {
+            alert('알 수 없는 확장자입니다: .' + ext + '  (.prm, .sfs, .ion, .con 만 지원)');
+            return;
+        }
+        setStatus(file.name + ' 을(를) 불러왔습니다.');
+    };
+    reader.readAsText(file);
+}
+
+/* ---------------- saving files ------------------------------------
+   Opened as a local file or from a web server, an <a download> works.
+   Published as a claude.ai artifact, the page may not download on its
+   own -- the viewer confirms each save through the downloads
+   capability.  Both paths are kept so the same file works either way. */
+function inArtifact() {
+    return !!(window.claude && typeof window.claude.use === 'function');
+}
+
+function anchorSave(filename, href, revoke) {
+    var a = document.createElement('a');
+    a.href = href; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    if (revoke) setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+}
+
+function offerSave(filename, blob) {
+    window.claude.use('downloads').then(function (d) {
+        if (!d) { setStatus('이 화면에서는 파일 저장이 허용되지 않았습니다.'); return; }
+        d.save({ filename: filename, data: blob }).then(
+            function () { setStatus(filename + ' 저장함'); },
+            function (e) {
+                var code = (e && e.code) || 'error';
+                if (code === 'declined') return;               // viewer said no
+                setStatus('저장하지 못했습니다 (' + code + ')');
+            });
+    });
+}
+
+function saveText(filename, text) {
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    if (inArtifact()) { offerSave(filename, blob); return; }
+    anchorSave(filename, URL.createObjectURL(blob), true);
+}
+
+function saveData() {
+    if (!recorded.length) { alert('기록된 데이터가 없습니다. "데이터 기록"을 켜고 실행하세요.'); return; }
+    var lines = [recordCols.join('\t')];
+    recorded.forEach(function (r) { lines.push(r.join('\t')); });
+    saveText('heart_data.txt', lines.join('\r\n'));
+}
+
+function savePng(graph, name) {
+    if (inArtifact() && graph.canvas.toBlob) {
+        graph.canvas.toBlob(function (blob) { offerSave(name, blob); }, 'image/png');
+        return;
+    }
+    anchorSave(name, graph.canvas.toDataURL('image/png'), false);
+}
+
+/* ---------------- display range ----------------------------------- */
+function applyRange() {
+    graphCur.setXYRange(0, num('curMin'), m_TotalTime || graphCur.maxX, num('curMax'));
+    graphVol.setXYRange(0, num('volMin'), m_TotalTime || graphVol.maxX, num('volMax'));
+    convertUnit();
+    graphCur.redraw();
+    graphVol.redraw();
+}
+/* Fit the Y axis to what was actually drawn, and keep the input boxes in sync. */
+function autoScale(which) {
+    var done = [];
+    if (which !== 'vol') {
+        var rc = graphCur.autoScaleY();
+        if (rc) { $('curMin').value = rc[0]; $('curMax').value = rc[1]; done.push('전류 ' + rc[0] + ' ~ ' + rc[1]); }
+    }
+    if (which !== 'cur') {
+        var rv = graphVol.autoScaleY();
+        if (rv) { $('volMin').value = rv[0]; $('volMax').value = rv[1]; done.push('막전위 ' + rv[0] + ' ~ ' + rv[1]); }
+    }
+    if (!done.length) return null;
+    convertUnit();
+    return '자동 스케일 ' + done.join(' / ');
+}
+
+function scaleY(graph, minId, maxId, factor) {
+    var lo = num(minId), hi = num(maxId), mid = (lo + hi) / 2, half = (hi - lo) / 2 * factor;
+    $(minId).value = (mid - half).toPrecision(4);
+    $(maxId).value = (mid + half).toPrecision(4);
+    applyRange();
+}
+
+/* ------------------------------------------------------------------
+ * cursor readout  --  hover reads exact values off the stored traces,
+ * clicks drop A / B markers so intervals (APD, 불응기, tau) can be
+ * measured instead of eyeballed.
+ * ------------------------------------------------------------------ */
+var marks = [];              // up to two locked times
+var hoverT = null;
+
+function readEpisodeIndex() {
+    var v = parseInt($('selReadEp').value, 10);
+    if (isNaN(v) || v < 0 || v >= traces.eps.length) return traces.eps.length - 1;
+    return v;
+}
+
+function fillEpisodeSelect() {
+    var sel = $('selReadEp'), keep = sel.value, i;
+    sel.innerHTML = '';
+    sel.appendChild(new Option('마지막', '-1'));
+    for (i = 0; i < traces.eps.length; i++) {
+        sel.appendChild(new Option('#' + (traces.epInfo[i] ? traces.epInfo[i].n : i + 1), String(i)));
+    }
+    sel.value = (keep && sel.querySelector('option[value="' + keep + '"]')) ? keep : '-1';
+}
+
+function fmtVal(v, unit) {
+    if (v === null || v === undefined || !isFinite(v)) return '—';
+    var a = Math.abs(v), s;
+    s = a >= 100 ? v.toFixed(1) : a >= 1 ? v.toFixed(2) : a >= 0.01 ? v.toFixed(3) : v.toFixed(4);
+    return s + (unit ? ' ' + unit : '');
+}
+
+function drawOverlay(g, canvas) {
+    var c = canvas.getContext('2d');
+    var dpr = g.dpr;
+    if (canvas.width !== g.canvas.width || canvas.height !== g.canvas.height) {
+        canvas.width = g.canvas.width; canvas.height = g.canvas.height;
+    }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, g.cssW, g.cssH);
+    var r = g.plotRect(), i, x;
+
+    function vline(t, color, dash, label) {
+        x = g.px(t);
+        if (x < r.x - 1 || x > r.x + r.w + 1) return;
+        c.save();
+        c.strokeStyle = color; c.lineWidth = 1; c.setLineDash(dash || []);
+        c.beginPath(); c.moveTo(Math.round(x) + 0.5, r.y); c.lineTo(Math.round(x) + 0.5, r.y + r.h); c.stroke();
+        if (label) {
+            c.setLineDash([]);
+            c.fillStyle = color;
+            c.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+            c.textAlign = 'center'; c.textBaseline = 'top';
+            c.fillText(label, x, r.y + 2);
+        }
+        c.restore();
+    }
+
+    for (i = 0; i < marks.length; i++) vline(marks[i], '#b45309', [4, 3], i === 0 ? 'A' : 'B');
+    if (marks.length === 2) {
+        var xa = g.px(marks[0]), xb = g.px(marks[1]);
+        c.save();
+        c.fillStyle = 'rgba(180,83,9,0.07)';
+        c.fillRect(Math.min(xa, xb), r.y, Math.abs(xb - xa), r.h);
+        c.restore();
+    }
+    if (hoverT !== null) vline(hoverT, '#c00000', []);
+}
+
+function renderReadout() {
+    var box = $('readout');
+    box.innerHTML = '';
+    if (hoverT === null && !marks.length) {
+        box.appendChild(el('span', 'hint',
+            '그래프 위에 마우스를 올리면 값을 읽습니다. 두 번 클릭해 A·B 를 찍으면 '
+            + '구간을 재고, 측정표가 그 구간으로 자동으로 만들어집니다.'));
+        return;
+    }
+    if (!traces.eps.length) {
+        box.appendChild(el('span', 'hint', '먼저 [실행] 하세요.'));
+        return;
+    }
+    var ep = readEpisodeIndex();
+    var info = traces.epInfo[ep];
+    var t = hoverT !== null ? hoverT : marks[marks.length - 1];
+
+    var head = el('span', 't', 't = ' + t.toFixed(2) + ' ms');
+    box.appendChild(head);
+    if (info) {
+        box.appendChild(el('span', 'hint',
+            '· ep #' + info.n + ' · pulse2 ' + info.p2.toFixed(2) + (info.vc ? ' mV' : ' nA')));
+    }
+
+    traces.order.forEach(function (key) {
+        var m = traces.meta[key];
+        var s = traceValueAt(ep, key, t);
+        if (!s) return;
+        var span = el('span', 'v');
+        var sw = el('i'); sw.style.background = m.color;
+        span.appendChild(sw);
+        span.appendChild(document.createTextNode(m.label + ' ' + fmtVal(s.v, m.unit)));
+        box.appendChild(span);
+    });
+
+    if (marks.length === 2) {
+        var d = el('span', 'delta', 'Δt = ' + Math.abs(marks[1] - marks[0]).toFixed(2) + ' ms');
+        box.appendChild(d);
+        traces.order.forEach(function (key) {
+            var m = traces.meta[key];
+            var a = traceValueAt(ep, key, marks[0]), b = traceValueAt(ep, key, marks[1]);
+            if (!a || !b) return;
+            box.appendChild(el('span', 'delta', 'Δ' + m.label + ' = ' + fmtVal(b.v - a.v, m.unit)));
+        });
+    }
+}
+
+/* ---- time-axis zoom -------------------------------------------------
+ * "A·B 확대" narrows both graphs to the marked interval; Y is refitted
+ * to what is inside that window when 자동 스케일 is on.
+ * ------------------------------------------------------------------ */
+function setXWindow(t0, t1) {
+    graphCur.minX = t0; graphCur.maxX = t1;
+    graphVol.minX = t0; graphVol.maxX = t1;
+    var fit = $('chkAutoScale').checked ? autoScale('both') : null;
+    if (!fit) { graphCur.redraw(); graphVol.redraw(); }
+    drawOverlay(graphCur, $('ovCur'));
+    drawOverlay(graphVol, $('ovVol'));
+    renderReadout();
+    return fit;
+}
+
+function zoomToMarks() {
+    if (marks.length < 2) {
+        setStatus('A·B 확대: 그래프를 두 번 클릭해 A·B 를 먼저 찍으세요.');
+        return;
+    }
+    var t0 = Math.min(marks[0], marks[1]), t1 = Math.max(marks[0], marks[1]);
+    if (t1 - t0 < 1e-6) { setStatus('A·B 확대: 두 지점이 너무 가깝습니다.'); return; }
+    /* 2% 여유를 둬야 A·B 표식이 그래프 가장자리에 붙지 않는다 */
+    var pad = (t1 - t0) * 0.02;
+    var fit = setXWindow(t0 - pad, t1 + pad);
+    setStatus('A·B 확대  ' + t0.toFixed(2) + ' ~ ' + t1.toFixed(2) + ' ms (Δt ' +
+              (t1 - t0).toFixed(2) + ' ms)' + (fit ? '  ·  ' + fit : ''));
+}
+
+function zoomOut() {
+    var full = m_TotalTime || graphCur.maxX;
+    var fit = setXWindow(0, full);
+    setStatus('전체 보기  0 ~ ' + full.toFixed(2) + ' ms' + (fit ? '  ·  ' + fit : ''));
+}
+
+/* 실행을 새로 시작할 때: 표는 닫혀 있으므로 갱신하지 않는다 */
+function clearMarksForRun() { clearMarks(false); }
+
+function clearMarks(keepTable) {
+    marks = []; hoverT = null;
+    updateMeasureABState(false);
+    if (keepTable !== false) refreshMeasure(false);
+    if (graphCur) { drawOverlay(graphCur, $('ovCur')); drawOverlay(graphVol, $('ovVol')); renderReadout(); }
+}
+
+function cursorSetup(wrapId, g, isVol) {
+    var wrap = $(wrapId);
+    wrap.addEventListener('mousemove', function (e) {
+        var r = wrap.getBoundingClientRect();
+        var xp = e.clientX - r.left, yp = e.clientY - r.top;
+        hoverT = g.insidePlot(xp, yp) ? g.xFromPx(xp) : null;
+        drawOverlay(graphCur, $('ovCur'));
+        drawOverlay(graphVol, $('ovVol'));
+        renderReadout();
+    });
+    wrap.addEventListener('mouseleave', function () {
+        hoverT = null;
+        drawOverlay(graphCur, $('ovCur'));
+        drawOverlay(graphVol, $('ovVol'));
+        renderReadout();
+    });
+    wrap.addEventListener('click', function (e) {
+        var r = wrap.getBoundingClientRect();
+        var xp = e.clientX - r.left, yp = e.clientY - r.top;
+        if (!g.insidePlot(xp, yp)) return;
+        var t = g.xFromPx(xp);
+        if (marks.length >= 2) marks = [];
+        marks.push(t);
+        updateMeasureABState(marks.length === 2);
+        drawOverlay(graphCur, $('ovCur'));
+        drawOverlay(graphVol, $('ovVol'));
+        renderReadout();
+        /* B 를 찍는 순간 측정표를 자동으로 만든다.  A 만 찍힌 상태로
+           돌아가면(세 번째 클릭) 이미 열려 있는 표만 전체 구간으로 갱신한다. */
+        refreshMeasure(marks.length === 2);
+    });
+}
+
+/* ------------------------------------------------------------------
+ * 에피소드별 측정표 -- I-V 곡선, 역치, overshoot, AHP, APD 를 눈금
+ * 읽기 없이 바로 뽑는다.
+ * ------------------------------------------------------------------ */
+var measureRows = [], measureCols = [], measureWin = null;
+
+/* A·B 가 찍혀 있고 "A·B 구간만" 이 켜져 있으면 그 시간창, 아니면 null(전체) */
+function measureWindow() {
+    if (marks.length === 2 && $('chkMeasureAB').checked) {
+        return [Math.min(marks[0], marks[1]), Math.max(marks[0], marks[1])];
+    }
+    return null;
+}
+
+/* A·B 체크박스는 표식이 두 개 있을 때만 쓸 수 있다 */
+function updateMeasureABState(justMarked) {
+    var cb = $('chkMeasureAB'), ok = marks.length === 2;
+    cb.disabled = !ok;
+    if (!ok) cb.checked = false;
+    else if (justMarked) cb.checked = true;
+    $('labMeasureAB').style.opacity = ok ? '1' : '0.45';
+}
+
+function seriesStats(s, w) {
+    if (!s || !s.t.length) return null;
+    var i, mx = -Infinity, mn = Infinity, tmx = 0, tmn = 0, n = 0;
+    for (i = 0; i < s.v.length; i++) {
+        if (w && (s.t[i] < w[0] || s.t[i] > w[1])) continue;
+        n++;
+        if (s.v[i] > mx) { mx = s.v[i]; tmx = s.t[i]; }
+        if (s.v[i] < mn) { mn = s.v[i]; tmn = s.t[i]; }
+    }
+    if (!n) return null;
+    return { max: mx, tmax: tmx, min: mn, tmin: tmn, n: n };
+}
+
+/* APD: total time above `level`, and the first/last crossing */
+function apd(s, level, w) {
+    if (!s) return null;
+    var first = -1, last = -1, i;
+    for (i = 0; i < s.v.length; i++) {
+        if (w && (s.t[i] < w[0] || s.t[i] > w[1])) continue;
+        if (s.v[i] >= level) { if (first < 0) first = i; last = i; }
+    }
+    if (first < 0) return null;
+    return { dur: s.t[last] - s.t[first], t0: s.t[first], t1: s.t[last] };
+}
+
+function buildMeasure() {
+    if (!traces.eps.length) { setStatus('측정표: 먼저 [실행] 하세요.'); return false; }
+    measureWin = measureWindow();
+    var w = measureWin;
+    var vc = traces.epInfo[0] && traces.epInfo[0].vc;
+    measureCols = ['ep', vc ? 'step (mV)' : 'pulse2 (nA)'];
+    var keys = traces.order.slice();
+    var hasVm = keys.indexOf('vm') >= 0;
+
+    /* 전류는 안쪽(min)·바깥쪽(max) 정점이 각각 의미가 있으므로 둘 다 적는다 */
+    if (hasVm) {
+        measureCols.push('Vm max (mV)', 't max (ms)', 'Vm min (mV)', 't min (ms)');
+        if (!vc) measureCols.push('APD@-20 (ms)');   // APD 는 전류고정 모드에서만
+    }
+    keys.forEach(function (k) {
+        if (k === 'vm') return;
+        var u = traces.meta[k].unit, lab = traces.meta[k].label;
+        var su = u ? ' (' + u + ')' : '';
+        measureCols.push(lab + ' max' + su, lab + ' t max (ms)',
+                         lab + ' min' + su, lab + ' t min (ms)');
+    });
+
+    measureRows = traces.eps.map(function (e, i) {
+        var info = traces.epInfo[i] || {};
+        var row = [String(info.n || i + 1), (info.p2 !== undefined ? info.p2.toFixed(3) : '')];
+        var fired = false;
+        if (hasVm) {
+            var st = seriesStats(e['vm'], w);
+            var a = apd(e['vm'], -20, w);
+            fired = st && st.max >= -20;
+            row.push(st ? st.max.toFixed(2) : '', st ? st.tmax.toFixed(2) : '',
+                     st ? st.min.toFixed(2) : '', st ? st.tmin.toFixed(2) : '');
+            if (!vc) row.push(a ? a.dur.toFixed(2) : '—');
+        }
+        keys.forEach(function (k) {
+            if (k === 'vm') return;
+            var st = seriesStats(e[k], w);
+            row.push(st ? st.max.toFixed(4) : '', st ? st.tmax.toFixed(2) : '',
+                     st ? st.min.toFixed(4) : '', st ? st.tmin.toFixed(2) : '');
+        });
+        row.fired = fired;
+        return row;
+    });
+    return true;
+}
+
+function renderMeasure() {
+    var box = $('measureBox'), win = $('measureWin');
+    if (measureWin) {
+        win.innerHTML = '측정 구간 <b>A–B  ' + measureWin[0].toFixed(2) + ' ~ ' +
+            measureWin[1].toFixed(2) + ' ms</b> (Δt ' +
+            (measureWin[1] - measureWin[0]).toFixed(2) + ' ms) — '
+            + '이 구간 안에서만 max·min·APD 를 계산했습니다.';
+        win.hidden = false;
+    } else {
+        win.hidden = true;
+    }
+    var html = ['<table><thead><tr>'];
+    measureCols.forEach(function (c) { html.push('<th>' + c + '</th>'); });
+    html.push('</tr></thead><tbody>');
+    measureRows.forEach(function (r) {
+        html.push('<tr' + (r.fired ? ' class="fire"' : '') + '>');
+        r.forEach(function (v, i) { html.push('<td' + (i === 0 ? ' class="ep"' : '') + '>' + v + '</td>'); });
+        html.push('</tr>');
+    });
+    html.push('</tbody></table>');
+    box.innerHTML = html.join('');
+    box.hidden = false;
+}
+
+/* 표를 다시 만든다.  autoShow 가 false 면 이미 열려 있을 때만 갱신한다. */
+function refreshMeasure(autoShow) {
+    var box = $('measureBox'), wasHidden = box.hidden;
+    if (wasHidden && !autoShow) return false;
+    if (!buildMeasure()) return false;
+    renderMeasure();
+    if (wasHidden) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setStatus('측정표 ' + measureRows.length + ' 에피소드 · ' +
+        (measureWin ? 'A–B ' + measureWin[0].toFixed(2) + ' ~ ' +
+         measureWin[1].toFixed(2) + ' ms' : '에피소드 전체'));
+    return true;
+}
+
+function measureCsv() {
+    if (!measureRows.length && !buildMeasure()) return;
+    var lines = [];
+    lines.push(measureWin
+        ? '# A-B window: ' + measureWin[0].toFixed(3) + ' ~ ' +
+          measureWin[1].toFixed(3) + ' ms'
+        : '# window: full episode');
+    lines.push(measureCols.join('\t'));
+    measureRows.forEach(function (r) { lines.push(r.join('\t')); });
+    saveText('heart_measure.txt', lines.join('\r\n'));
+}
+
+/* ------------------------------------------------------------------
+ * 강도–지속시간 곡선 (매뉴얼 III-1 2)
+ * Ir 은 수평 점근선, C 는 2·Ir 과 만나는 가로축 위치로 그려 준다.
+ * ------------------------------------------------------------------ */
+var sdPts = [], sdFit = null, sdMeas = null, sdBusy = false;
+
+function sdConfig() {
+    return {
+        SF: model.SF, Ion: model.Ion, Condition: model.Condition,
+        bHH: model.bHH, bConstantField: model.bConstantField,
+        stimSign: model.stimSign, m_FixedTimeInterval: model.m_FixedTimeInterval
+    };
+}
+
+function sdDurations() {
+    return $('sdDur').value.split(/[,\s]+/)
+        .map(parseFloat).filter(function (v) { return isFinite(v) && v > 0; })
+        .sort(function (a, b) { return a - b; });
+}
+
+function runStrengthDuration() {
+    if (sdBusy) return;
+    if (document.querySelector('input[name="mode"]:checked').value === 'vc') {
+        setStatus('강도–지속시간은 전류고정(AP) 실험입니다. 모드를 바꾸고 다시 하세요.');
+        return;
+    }
+    var durs = sdDurations();
+    if (!durs.length) { setStatus('자극기간 목록을 확인하세요.'); return; }
+
+    inputValueFromControl();                 // 현재 세포·펄스 값을 모델에 반영
+    var baseP = model.Pulse.slice();
+    var cfg = sdConfig();
+    var level = num('sdLevel');
+
+    $('sdBox').hidden = false;
+    $('sdBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    sdPts = []; sdFit = null; sdMeas = null; sdBusy = true;
+    $('sdRes').innerHTML = '';
+    drawSD();
+
+    /* 배치 계산이므로 setTimeout 을 쓴다.  requestAnimationFrame 은
+       탭이 배경에 있을 때 멈춰서 측정이 진행되지 않는다. */
+    var i = 0;
+    function step() {
+        try {
+            if (i >= durs.length) {
+                sdFit = SD.fit(sdPts);
+                /* 정의 그대로 직접 측정한다.
+                   Ir = 가장 긴 자극기간의 역치(평탄값),
+                   C  = 2·Ir 을 줌 때 발화에 필요한 최소 자극기간. */
+                sdMeas = null;
+                if (sdPts.length) {
+                    var last = sdPts[sdPts.length - 1];
+                    var Ir = last.i;
+                    $('sdMsg').textContent = 'chronaxie 측정 중 … (2 Ir = ' +
+                                             (2 * Ir).toFixed(4) + ' nA)';
+                    var C = SD.durationFor(cfg, baseP, 2 * Ir, level, last.dur);
+                    sdMeas = { Ir: Ir, IrDur: last.dur, C: C };
+                }
+                sdBusy = false;
+                $('sdMsg').textContent = '';
+                drawSD();
+                renderSDResult();
+                setStatus('강도–지속시간 측정 완료 — ' + sdPts.length + ' 점' +
+                    (sdMeas ? ' · Ir ' + sdMeas.Ir.toFixed(4) + ' nA' +
+                        (sdMeas.C ? ' · C ' + sdMeas.C.toFixed(2) + ' ms' : '') : ''));
+                return;
+            }
+            $('sdMsg').textContent = '측정 중 … ' + (i + 1) + '/' + durs.length +
+                                     '  (자극기간 ' + durs[i] + ' ms)';
+            var r = SD.thresholdFor(cfg, baseP, durs[i], level, 200);
+            if (r) sdPts.push(r);
+            i++;
+            drawSD();
+            setTimeout(step, 0);
+        } catch (err) {
+            sdBusy = false;
+            $('sdMsg').textContent = '';
+            setStatus('강도–지속시간 측정 중 오류: ' + err);
+        }
+    }
+    setTimeout(step, 0);
+}
+
+function drawSD() {
+    var cv = $('sdCanvas');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = cv.getBoundingClientRect();
+    var W = Math.max(80, Math.round(rect.width)), H = Math.max(60, Math.round(rect.height));
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    var c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+
+    var L = 54, R = 14, T = 14, B = 34;
+    var durs = sdDurations();
+    if (!durs.length) return;
+
+    var tmin = durs[0] / 1.6, tmax = durs[durs.length - 1] * 1.6;
+    var imax = 0.1, k;
+    for (k = 0; k < sdPts.length; k++) if (sdPts[k].i > imax) imax = sdPts[k].i;
+    if (sdMeas) imax = Math.max(imax, sdMeas.Ir * 2.4);
+    imax *= 1.12;
+
+    function X(t) {
+        return L + (Math.log(t) - Math.log(tmin)) / (Math.log(tmax) - Math.log(tmin)) * (W - L - R);
+    }
+    function Y(v) { return T + (1 - v / imax) * (H - T - B); }
+
+    /* 격자 */
+    c.strokeStyle = '#e6eaef'; c.lineWidth = 1;
+    c.setLineDash([2, 3]);
+    durs.forEach(function (d) {
+        c.beginPath(); c.moveTo(X(d), T); c.lineTo(X(d), H - B); c.stroke();
+    });
+    c.setLineDash([]);
+    c.strokeStyle = '#c8ced5';
+    c.strokeRect(L + 0.5, T + 0.5, W - L - R - 1, H - T - B - 1);
+
+    c.fillStyle = '#68727f'; c.font = '10px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    durs.forEach(function (d) { c.fillText(String(d), X(d), H - B + 4); });
+    c.fillText('자극기간 t (ms, 로그)', (L + W - R) / 2, H - 14);
+    c.save();
+    c.translate(12, (T + H - B) / 2); c.rotate(-Math.PI / 2);
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    c.fillText('역치전류 I (nA)', 0, 0);
+    c.restore();
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (k = 0; k <= 4; k++) {
+        var v = imax * k / 4;
+        c.fillText(v.toFixed(2), L - 5, Y(v));
+    }
+
+    /* 식 맞춘 곡선 I = Ir(1 + C/t) — 비교용 가는 선 */
+    if (sdFit && isFinite(sdFit.Ir) && isFinite(sdFit.C) && sdFit.C > 0) {
+        c.strokeStyle = '#9db6cf'; c.lineWidth = 1.2;
+        c.beginPath();
+        for (k = 0; k <= 200; k++) {
+            var t = Math.exp(Math.log(tmin) + (Math.log(tmax) - Math.log(tmin)) * k / 200);
+            var yy = Y(sdFit.Ir * (1 + sdFit.C / t));
+            if (k === 0) c.moveTo(X(t), yy); else c.lineTo(X(t), yy);
+        }
+        c.stroke();
+    }
+
+    /* 측정점을 이은 실제 곡선 */
+    if (sdPts.length > 1) {
+        c.strokeStyle = '#1b6ec2'; c.lineWidth = 1.8;
+        c.beginPath();
+        sdPts.forEach(function (pt, j) {
+            if (j === 0) c.moveTo(X(pt.dur), Y(pt.i)); else c.lineTo(X(pt.dur), Y(pt.i));
+        });
+        c.stroke();
+    }
+
+    /* 정의 그대로 직접 측정한 Ir · C */
+    if (sdMeas) {
+        c.strokeStyle = '#b45309'; c.setLineDash([5, 4]); c.lineWidth = 1.3;
+        c.beginPath(); c.moveTo(L, Y(sdMeas.Ir)); c.lineTo(W - R, Y(sdMeas.Ir)); c.stroke();
+        c.strokeStyle = '#c9b48d';
+        c.beginPath(); c.moveTo(L, Y(2 * sdMeas.Ir)); c.lineTo(W - R, Y(2 * sdMeas.Ir)); c.stroke();
+        c.setLineDash([]);
+
+        c.fillStyle = '#b45309'; c.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+        c.textAlign = 'left'; c.textBaseline = 'bottom';
+        c.fillText('Ir (rheobase) = ' + sdMeas.Ir.toFixed(4) + ' nA', L + 5, Y(sdMeas.Ir) - 2);
+        c.fillStyle = '#9a8a6b';
+        c.font = '10px "Segoe UI", Arial, sans-serif';
+        c.fillText('2 Ir = ' + (2 * sdMeas.Ir).toFixed(4) + ' nA', L + 5, Y(2 * sdMeas.Ir) - 2);
+
+        if (sdMeas.C && sdMeas.C >= tmin && sdMeas.C <= tmax) {
+            c.strokeStyle = '#0f8a5f'; c.setLineDash([5, 4]); c.lineWidth = 1.3;
+            c.beginPath();
+            c.moveTo(X(sdMeas.C), Y(2 * sdMeas.Ir)); c.lineTo(X(sdMeas.C), H - B);
+            c.stroke(); c.setLineDash([]);
+            c.fillStyle = '#0f8a5f';
+            c.beginPath(); c.arc(X(sdMeas.C), Y(2 * sdMeas.Ir), 4.5, 0, Math.PI * 2); c.fill();
+            c.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+            c.textAlign = 'left'; c.textBaseline = 'middle';
+            c.fillText('C = ' + sdMeas.C.toFixed(2) + ' ms', X(sdMeas.C) + 7, Y(2 * sdMeas.Ir) + 11);
+        }
+    }
+
+    /* 측정점 */
+    c.fillStyle = '#c00000';
+    sdPts.forEach(function (p) {
+        c.beginPath(); c.arc(X(p.dur), Y(p.i), 3.5, 0, Math.PI * 2); c.fill();
+    });
+}
+
+function renderSDResult() {
+    var h = ['<table><thead><tr><th>t (ms)</th><th>역치 I (nA)</th></tr></thead><tbody>'];
+    sdPts.forEach(function (p, i) {
+        h.push('<tr data-i="' + i + '" title="클릭하면 이 조건을 펄스 패널에 넣습니다">' +
+               '<td>' + p.dur + '</td><td>' + p.i.toFixed(4) + '</td></tr>');
+    });
+    h.push('</tbody></table>');
+
+    var f = sdFit, M = sdMeas;
+    var s = '<div class="sdfit">';
+    if (M) {
+        s += '<div class="big">측정값 (정의 그대로)</div>';
+        s += '<div><span class="ir">■</span> <b>rheobase  Ir = ' + M.Ir.toFixed(4) + ' nA</b>' +
+             ' — 자극기간을 가장 길게(' + M.IrDur + ' ms) 줄 때의 역치로,' +
+             ' 곡선이 다가가는 <b>수평 점근선</b>입니다.' +
+             ' 이보다 약하면 아무리 길게 줘도 발화하지 않습니다.</div>';
+        if (M.C) {
+            s += '<div><span class="cx">■</span> <b>chronaxie  C = ' + M.C.toFixed(2) + ' ms</b>' +
+                 ' — <b>2 Ir = ' + (2 * M.Ir).toFixed(4) + ' nA</b> 를 줄 때 발화시키는' +
+                 ' 최소 자극기간. 그래프에서 곡선이 2 Ir 선과 만나는' +
+                 ' 점의 가로좌표입니다. 이분법으로 직접 측정했습니다.</div>';
+        } else {
+            s += '<div class="def">2 Ir 로는 주어진 범위 안에서 발화하지 않아' +
+                 ' chronaxie 를 구하지 못했습니다. 자극기간 범위를 늘려 보세요.</div>';
+        }
+    }
+    if (f && isFinite(f.C) && f.C > 0) {
+        s += '<div class="def"><b>식 맞춤</b> I = Ir(1 + C/t) 으로 최소자승 맞춤하면' +
+             ' Ir = ' + f.Ir.toFixed(4) + ' nA, C = ' + f.C.toFixed(2) + ' ms' +
+             ' (R² = ' + (isFinite(f.r2) ? f.r2.toFixed(4) : '—') + ') 입니다' +
+             ' — 그래프의 연한 회색 선.' +
+             ' 측정값과 차이가 나는 것은 이 식이 <b>단순한 RC 막</b>을' +
+             ' 가정하기 때문입니다. 실제 HH 세포는 긴 자극에서 h·n 이 따라 움직여' +
+             ' (순응) 역치가 식이 예측하는 것보다 높은 값에서 평탄해집니다.</div>';
+    }
+    s += '<div class="def">짧은 자극은 막용량을 충전할 시간이 모자라 큰 전류가' +
+         ' 필요하고(1/t 항), 길어질수록 그 부담이 없어져 Ir 로 수렴합니다.' +
+         ' 표의 행을 누르면 그 조건이 펄스 패널에 들어가므로, [새 세포] 후 [실행] 해서' +
+         ' 실제 파형을 확인해 보세요. 측정은 매 조건마다 <b>안정막전위에서 새로</b>' +
+         ' 시작합니다. 화면에서 연속으로 [실행] 하면 직전 실행의 끝 상태에서' +
+         ' 이어가므로 값이 조금 다를 수 있습니다.</div>';
+    s += '</div>';
+
+    $('sdRes').innerHTML = h.join('') + s;
+
+    /* 행을 누르면 그 조건을 펄스 패널에 넣어 실제 파형을 볼 수 있게 */
+    Array.prototype.forEach.call($('sdRes').querySelectorAll('tbody tr'), function (tr) {
+        tr.addEventListener('click', function () {
+            var p = sdPts[parseInt(tr.dataset.i, 10)];
+            if (!p) return;
+            var dir = model.stimSign < 0 ? 1 : -1;
+            $('pul7').value = p.dur.toFixed(2);
+            $('pul5').value = (dir * p.i).toFixed(4);
+            $('pul6').value = (dir * p.i).toFixed(4);
+            $('pul13').value = '0.00';
+            $('pul15').value = '1.00';
+            $('selManual').value = '';
+            inputValueFromControl();
+            drawPulsePreview();
+            setStatus('t = ' + p.dur + ' ms, I = ' + p.i.toFixed(4) +
+                      ' nA (역치) 를 펄스 패널에 넣었습니다 — [실행] 으로 확인하세요.');
+        });
+    });
+}
+
+function sdCsv() {
+    if (!sdPts.length) { setStatus('강도–지속시간: 먼저 [자동 측정] 을 하세요.'); return; }
+    var lines = ['# strength-duration curve'];
+    if (sdMeas) {
+        lines.push('# measured  rheobase Ir (nA)\t' + sdMeas.Ir.toFixed(6) +
+                   '\t(at t = ' + sdMeas.IrDur + ' ms)');
+        if (sdMeas.C) lines.push('# measured  chronaxie C (ms)\t' + sdMeas.C.toFixed(4) +
+                                 '\t(at I = 2 Ir = ' + (2 * sdMeas.Ir).toFixed(6) + ' nA)');
+    }
+    if (sdFit && isFinite(sdFit.C)) {
+        lines.push('# fit I=Ir(1+C/t)  Ir (nA)\t' + sdFit.Ir.toFixed(6));
+        lines.push('# fit I=Ir(1+C/t)  C (ms)\t' + sdFit.C.toFixed(4));
+        lines.push('# fit R2\t' + sdFit.r2.toFixed(6));
+    }
+    lines.push('duration(ms)\tthreshold(nA)\t1/t(1/ms)');
+    sdPts.forEach(function (p) {
+        lines.push(p.dur + '\t' + p.i.toFixed(6) + '\t' + (1 / p.dur).toFixed(6));
+    });
+    saveText('strength_duration.txt', lines.join('\r\n'));
+}
+
+/* ------------------------------------------------------------------
+ * IK 활성화 시간상수 (매뉴얼 II-4) 와 α_n · β_n (II-5)
+ *
+ * n(t) = n∞(1 − e^(−t/τ)) 이고 IK ∝ n⁴ 이므로, 전류가 full 값의 56 % 에
+ * 닿는 시각은 (1 − e^(−t/τ))⁴ = 0.56  →  e^(−t/τ) = 0.1347  →  t = 2τ.
+ * 그래서 "56 % 도달시간의 반" 이 시간상수가 된다.
+ * ------------------------------------------------------------------ */
+var tauPts = [], tauBusy = false;
+
+function runTauSweep() {
+    if (tauBusy) return;
+    if (document.querySelector('input[name="mode"]:checked').value !== 'vc') {
+        setStatus('τ 측정은 전압고정(VC) 실험입니다. 모드를 바꾸고 다시 하세요.');
+        return;
+    }
+    inputValueFromControl();
+    var baseP = model.Pulse.slice();
+    var cfg = sdConfig();
+    var nEp = Math.max(1, Math.trunc(baseP[15]) || 1);
+    var step = baseP[13];
+
+    $('tauBox').hidden = false;
+    $('tauBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    tauPts = []; tauBusy = true;
+    $('tauRes').innerHTML = '';
+    drawTau();
+
+    var i = 0;
+    function next() {
+        try {
+            if (i >= nEp) {
+                tauBusy = false;
+                $('tauMsg').textContent = '';
+                finishTau();
+                return;
+            }
+            var V = baseP[5] + step * i;
+            $('tauMsg').textContent = '측정 중 … ' + (i + 1) + '/' + nEp +
+                                      '  (지령전위 ' + V.toFixed(0) + ' mV)';
+            var r = SD.tauForStep(cfg, baseP, V, { dt: 0.02, capMs: 600 });
+            if (r && isFinite(r.tau) && r.tau > 0) tauPts.push(r);
+            i++;
+            drawTau();
+            setTimeout(next, 0);
+        } catch (err) {
+            tauBusy = false;
+            $('tauMsg').textContent = '';
+            setStatus('τ 측정 중 오류: ' + err);
+        }
+    }
+    setTimeout(next, 0);
+}
+
+/* HH 식에서 바로 나오는 이론값 (heart10Doc.cpp RateConstantsDefault 와 동일) */
+function hhN(V) {
+    var x = 10 - V - 65;
+    var a = (Math.abs(x) < 1e-6) ? 0.1 : 0.01 * x / (Math.exp(x / 10) - 1);
+    var b = 0.125 * Math.exp((-V - 65) / 80);
+    return { alpha: a, beta: b, tau: 1 / (a + b), ninf: a / (a + b) };
+}
+
+/* n∞ 는 전도도로부터: G = Iss/(V − EK),  n∞ = (G/Gmax)^(1/4) */
+function finishTau() {
+    var gmax = 0;
+    tauPts.forEach(function (p) {
+        var d = p.V - p.VK;
+        p.G = Math.abs(d) > 1e-9 ? p.Iss / d : 0;
+        if (p.G > gmax) gmax = p.G;
+    });
+    tauPts.forEach(function (p) {
+        p.ninf = gmax > 0 ? Math.pow(Math.max(0, p.G / gmax), 0.25) : NaN;
+        p.alpha = p.ninf / p.tau;
+        p.beta = (1 - p.ninf) / p.tau;
+        p.th = hhN(p.V);
+    });
+    drawTau();
+    renderTauResult();
+    setStatus('τ 측정 완료 — ' + tauPts.length + ' 점');
+}
+
+function drawTau() {
+    var cv = $('tauCanvas');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = cv.getBoundingClientRect();
+    var W = Math.max(80, Math.round(rect.width)), H = Math.max(60, Math.round(rect.height));
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    var c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+    if (!tauPts.length) return;
+
+    var mode = $('tauPlot').value;
+    var L = 56, R = 16, T = 14, B = 34, k;
+
+    var vmin = Infinity, vmax = -Infinity, ymax = 0;
+    tauPts.forEach(function (p) {
+        if (p.V < vmin) vmin = p.V;
+        if (p.V > vmax) vmax = p.V;
+        if (mode === 'tau') { if (p.tau > ymax) ymax = p.tau; }
+        else {
+            if (isFinite(p.alpha) && p.alpha > ymax) ymax = p.alpha;
+            if (isFinite(p.beta) && p.beta > ymax) ymax = p.beta;
+        }
+    });
+    if (vmax - vmin < 1e-9) { vmin -= 5; vmax += 5; }
+    var pad = (vmax - vmin) * 0.08; vmin -= pad; vmax += pad;
+    ymax = (ymax || 1) * 1.15;
+
+    function X(v) { return L + (v - vmin) / (vmax - vmin) * (W - L - R); }
+    function Y(v) { return T + (1 - v / ymax) * (H - T - B); }
+
+    c.strokeStyle = '#c8ced5'; c.lineWidth = 1;
+    c.strokeRect(L + 0.5, T + 0.5, W - L - R - 1, H - T - B - 1);
+    c.strokeStyle = '#e6eaef'; c.setLineDash([2, 3]);
+    tauPts.forEach(function (p) {
+        c.beginPath(); c.moveTo(X(p.V), T); c.lineTo(X(p.V), H - B); c.stroke();
+    });
+    c.setLineDash([]);
+
+    c.fillStyle = '#68727f'; c.font = '10px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    tauPts.forEach(function (p) { c.fillText(p.V.toFixed(0), X(p.V), H - B + 4); });
+    c.fillText('지령전위 (mV)', (L + W - R) / 2, H - 14);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (k = 0; k <= 4; k++) c.fillText((ymax * k / 4).toFixed(2), L - 5, Y(ymax * k / 4));
+    c.save();
+    c.translate(12, (T + H - B) / 2); c.rotate(-Math.PI / 2);
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    c.fillText(mode === 'tau' ? 'τ (ms)' : 'α_n · β_n  (1/ms)', 0, 0);
+    c.restore();
+
+    function series(get, color, label, labAt) {
+        var any = false;
+        c.strokeStyle = color; c.lineWidth = 1.8; c.beginPath();
+        tauPts.forEach(function (p, j) {
+            var v = get(p);
+            if (!isFinite(v)) return;
+            if (!any) { c.moveTo(X(p.V), Y(v)); any = true; } else c.lineTo(X(p.V), Y(v));
+        });
+        if (any) c.stroke();
+        c.fillStyle = color;
+        tauPts.forEach(function (p) {
+            var v = get(p);
+            if (!isFinite(v)) return;
+            c.beginPath(); c.arc(X(p.V), Y(v), 3.2, 0, Math.PI * 2); c.fill();
+        });
+        if (any && label) {
+            var q = tauPts[labAt === 'first' ? 0 : tauPts.length - 1];
+            c.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+            c.textAlign = labAt === 'first' ? 'left' : 'right';
+            c.textBaseline = 'bottom';
+            c.fillText(label, X(q.V) + (labAt === 'first' ? 6 : -6), Y(get(q)) - 5);
+        }
+    }
+
+    function theory(get, color) {
+        if (!tauPts[0] || !tauPts[0].th) return;
+        c.strokeStyle = color; c.lineWidth = 1.2; c.setLineDash([4, 3]);
+        c.beginPath();
+        tauPts.forEach(function (p, j) {
+            var v = get(p.th);
+            if (j === 0) c.moveTo(X(p.V), Y(v)); else c.lineTo(X(p.V), Y(v));
+        });
+        c.stroke(); c.setLineDash([]);
+    }
+
+    if (mode === 'tau') {
+        theory(function (t) { return t.tau; }, '#9db6cf');
+        series(function (p) { return p.tau; }, '#1b6ec2', 'τ (측정)', 'first');
+    } else {
+        theory(function (t) { return t.alpha; }, '#86c7aa');
+        theory(function (t) { return t.beta; }, '#d9b382');
+        series(function (p) { return p.alpha; }, '#0f8a5f', 'α_n', 'last');
+        series(function (p) { return p.beta; }, '#b45309', 'β_n', 'first');
+    }
+
+    c.fillStyle = '#8a949f'; c.font = '9.5px "Segoe UI", Arial, sans-serif';
+    c.textAlign = 'right'; c.textBaseline = 'top';
+    c.fillText('점선 = HH 식의 이론값', W - R - 3, T + 3);
+}
+
+function renderTauResult() {
+    var h = ['<table><thead><tr><th>V (mV)</th><th>56 % 도달 (ms)</th>' +
+             '<th>τ 측정 (ms)</th><th>τ 이론 (ms)</th>' +
+             '<th>n∞ 측정</th><th>n∞ 이론</th>' +
+             '<th>α_n</th><th>β_n</th></tr></thead><tbody>'];
+    tauPts.forEach(function (p) {
+        h.push('<tr' + (p.grew ? ' title="정상상태까지 펄스 2 를 ' + p.dur.toFixed(0) +
+                                 ' ms 로 자동 연장했습니다"' : '') + '>' +
+               '<td>' + p.V.toFixed(0) + '</td>' +
+               '<td>' + p.t56.toFixed(3) + '</td>' +
+               '<td>' + p.tau.toFixed(3) + '</td>' +
+               '<td>' + p.th.tau.toFixed(3) + '</td>' +
+               '<td>' + (isFinite(p.ninf) ? p.ninf.toFixed(3) : '—') + '</td>' +
+               '<td>' + p.th.ninf.toFixed(3) + '</td>' +
+               '<td>' + (isFinite(p.alpha) ? p.alpha.toFixed(4) : '—') + '</td>' +
+               '<td>' + (isFinite(p.beta) ? p.beta.toFixed(4) : '—') + '</td></tr>');
+    });
+    h.push('</tbody></table>');
+
+    var grew = tauPts.filter(function (p) { return p.grew; });
+    var s = '<div class="sdfit">';
+    s += '<div class="big">왜 56 % 도달시간의 <u>반</u>이 τ 인가</div>';
+    s += '<div>n 은 <b>n(t) = n∞(1 − e<sup>−t/τ</sup>)</b> 로 커지는데 전류는 ' +
+         '<b>I ∝ n⁴</b> 입니다. 전류가 full 값의 56 % 가 되는 순간은<br>' +
+         '(1 − e<sup>−t/τ</sup>)⁴ = 0.56 → 1 − e<sup>−t/τ</sup> = 0.56<sup>1/4</sup> = 0.865 ' +
+         '→ e<sup>−t/τ</sup> = 0.135 → <b>t = 2τ</b><br>' +
+         '즉 56 % 지점이 정확히 <b>두 시간상수</b>에 해당하므로 그 시간을 반으로 나눕니다. ' +
+         '(n 자체라면 63 % 가 1τ 이지만, 우리가 보는 것은 n⁴ 인 전류입니다.)</div>';
+
+    s += '<div class="def"><b>측정값이 이론값보다 작게 나오는 이유</b> — 위 유도는 ' +
+         '<b>n 이 0 에서 출발</b>한다고 가정합니다. 실제로는 유지전위(−80 mV)에서도 ' +
+         'n₀ ≈ 0.13 으로 이미 열려 있어, 출발점이 0 이 아니므로 56 % 지점은 2τ 보다 ' +
+         '조금 일찍 옵니다. 전류로 보면 n₀⁴/n∞⁴ 가 1 % 도 안 돼 “0 에서 시작” 처럼 ' +
+         '보이지만, τ 를 결정하는 것은 n⁴ 이 아니라 n 입니다. 이 차이는 탈분극이 작을수록 ' +
+         '(n∞ 가 작을수록) 커집니다.</div>';
+
+    s += '<div class="def"><b>n∞ 에도 같은 종류의 오차가 있습니다</b> — 매뉴얼은 ' +
+         'G = I/(V − E<sub>K</sub>) 로 전도도를 구하라고 하지만(옴형 가정), 이 모델의 ' +
+         'IK 는 <b>정전장(GHK) 구동력</b>을 씁니다. 그래서 I/(V − E<sub>K</sub>) 가 n⁴ 에 ' +
+         '정확히 비례하지 않아 n∞ 추정값이 이론값과 벌어집니다.</div>';
+
+    s += '<div class="def">시간은 매뉴얼대로 <b>펄스 2 가 시작되는 순간부터</b> 쟀습니다 ' +
+         '(holding length 는 빠져 있습니다). ';
+    if (grew.length) {
+        s += '전류가 정상상태에 이르지 못한 ' + grew.map(function (p) {
+            return p.V.toFixed(0) + ' mV';
+        }).join(', ') + ' 에서는 펄스 2 를 자동으로 늘려 측정했습니다 ' +
+             '(매뉴얼의 −60 mV 주의사항).';
+    } else {
+        s += '모든 지령전위에서 펄스 2 안에 정상상태에 도달했습니다.';
+    }
+    s += '</div>';
+
+    s += '<div class="def"><b>II-5</b> 는 여기서 바로 이어집니다. ' +
+         '<b>α_n = n∞/τ</b>, <b>β_n = (1 − n∞)/τ</b> 이므로 표의 두 열이 그 값입니다. ' +
+         '위 선택상자를 <i>α_n · β_n</i> 로 바꾸면 막전압에 대한 그래프가 ' +
+         '그려지고, 점선으로 HH 식의 이론값이 같이 나오므로 얼마나 가까운지 ' +
+         '확인할 수 있습니다.</div>';
+    s += '</div>';
+
+    $('tauRes').innerHTML = h.join('') + s;
+}
+
+function tauCsv() {
+    if (!tauPts.length) { setStatus('τ: 먼저 [자동 측정] 을 하세요.'); return; }
+    var lines = ['# IK activation kinetics (56% rule: t56 = 2 tau)',
+                 '# theory columns are the HH rate equations at that V',
+                 'V(mV)\tt56(ms)\ttau(ms)\ttau_theory(ms)\tIss(nA)\tG(nA/mV)\tninf\tninf_theory' +
+                 '\talpha_n(1/ms)\tbeta_n(1/ms)\talpha_theory\tbeta_theory\tpulse2(ms)'];
+    tauPts.forEach(function (p) {
+        lines.push([p.V.toFixed(2), p.t56.toFixed(4), p.tau.toFixed(4), p.th.tau.toFixed(4),
+                    p.Iss.toFixed(6), p.G.toFixed(6), p.ninf.toFixed(5), p.th.ninf.toFixed(5),
+                    p.alpha.toFixed(5), p.beta.toFixed(5),
+                    p.th.alpha.toFixed(5), p.th.beta.toFixed(5),
+                    p.dur.toFixed(1)].join('\t'));
+    });
+    saveText('ik_activation_tau.txt', lines.join('\r\n'));
+}
+
+/* ------------------------------------------------------------------
+ * 활동전압 재구성 (매뉴얼 II-6)
+ * α·β 만으로 적분한 결과를 모델(HH 모드)의 실제 계산과 겹쳐 보여 준다.
+ * ------------------------------------------------------------------ */
+var rcRes = null, rcRef = null;
+
+function runReconstruct() {
+    inputValueFromControl();
+
+    var SF = model.SF, Ion = model.Ion, Con = model.Condition;
+    var par = {
+        gNa: SF[13] * 200 / 1000 * SF[23],          // DefScaleVar 와 같은 식
+        gK: SF[14] * 60 / 1000 * SF[23],
+        gLeak: SF[20] * 0.0561 * 1.5 / 1000 * SF[23],
+        rgLeakK: 1.4,
+        Cap: SF[23] * 132 / 1000,
+        Nae: Ion[0], Nai: Ion[1], Ke: Ion[2], Ki: Ion[3],
+        tempC: Con[3], Rseal: Con[1],
+        stimSign: model.stimSign,
+        V0: -67, settle: 40,
+        t0: num('rcT0'), dur: num('rcDur'), amp: num('rcAmp'),
+        T: num('rcT'), dt: 0.01,
+        measured: $('rcMeasured').checked ? tauPts.filter(function (p) {
+            return isFinite(p.alpha) && isFinite(p.beta);
+        }) : null
+    };
+
+    if ($('rcMeasured').checked && (!par.measured || par.measured.length < 2)) {
+        setStatus('측정 α·β 를 쓰려면 먼저 II-4 패널에서 [자동 측정] 을 하세요.');
+        $('rcMeasured').checked = false;
+        par.measured = null;
+    }
+
+    $('reconBox').hidden = false;
+    $('reconBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    $('rcMsg').textContent = '적분 중 …';
+
+    /* 먼저 모델(HH 모드)로 같은 자극을 돌리고, 재구성은 그 출발 막전압에서
+       시작한다.  모델의 calculatevm() 은 |Itot| < 0.02 nA 에서 멈추므로
+       참 평형보다 몇 mV 떨어져 있는데, 같은 지점에서 출발해야 두 계산을
+       공정하게 겹쳐 볼 수 있다. */
+    rcRef = referenceAP(par);
+    if (rcRef && rcRef.vm && rcRef.vm.length) {
+        par.V0 = rcRef.vm[0];
+        par.settle = 0;
+    }
+
+    rcRes = RECON.reconstruct(par);
+    rcPar = par;
+
+    /* 측정 α·β 를 썼다면, 비교용으로 HH 식 결과도 함께 구한다 */
+    rcHHpeak = null;
+    if (par.measured) {
+        var alt = {}, kk;
+        for (kk in par) if (par.hasOwnProperty(kk)) alt[kk] = par[kk];
+        alt.measured = null;
+        var r2 = RECON.reconstruct(alt);
+        if (r2 && r2.V.length) rcHHpeak = Math.max.apply(null, r2.V);
+    }
+
+    $('rcMsg').textContent = '';
+    drawRecon();
+    renderReconResult();
+    setStatus('활동전압 재구성 완료 — 정점 ' +
+        Math.max.apply(null, rcRes.V).toFixed(2) + ' mV' +
+        (par.measured ? ' (n 의 α·β 는 II-4 측정값)' : ''));
+}
+
+var rcPar = null, rcHHpeak = null;
+
+/* 모델의 HH 경로로 같은 자극을 돌린 기준 파형 */
+function referenceAP(par) {
+    var P = [];
+    P[0] = 0; P[1] = par.t0; P[2] = 0; P[3] = 0; P[4] = 0;
+    P[5] = par.amp; P[6] = par.amp; P[7] = par.dur;
+    P[8] = 0; P[9] = 0; P[10] = 0;
+    P[11] = 0; P[12] = Math.max(1, par.T - par.t0 - par.dur);
+    P[13] = 0; P[14] = 0; P[15] = 1; P[16] = 0; P[17] = 1;
+    P[18] = Math.max(par.T, P[1] + P[4] + P[7] + P[10] + P[12]);
+
+    var cfg = {
+        SF: model.SF, Ion: model.Ion, Condition: model.Condition,
+        bHH: true,                      // 순수 HH 경로 = 재구성과 같은 전류 구성
+        bConstantField: false,
+        stimSign: model.stimSign,
+        m_FixedTimeInterval: 0.01
+    };
+    try {
+        return SD.recordEpisode(cfg, P, false, 0.01);
+    } catch (e) { return null; }
+}
+
+function rcAxes(c, W, H, L, R, T, B, xmax, ymin, ymax, ylab, yfmt) {
+    c.strokeStyle = '#c8ced5'; c.lineWidth = 1;
+    c.strokeRect(L + 0.5, T + 0.5, W - L - R - 1, H - T - B - 1);
+    c.fillStyle = '#68727f'; c.font = '10px "Segoe UI", Arial, sans-serif';
+    var k, v;
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    for (k = 0; k <= 6; k++) {
+        v = xmax * k / 6;
+        c.fillText(v.toFixed(0), L + (W - L - R) * k / 6, H - B + 4);
+    }
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (k = 0; k <= 4; k++) {
+        v = ymin + (ymax - ymin) * k / 4;
+        c.fillText(yfmt ? yfmt(v) : v.toFixed(0), L - 5,
+                   T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B));
+    }
+    c.save();
+    c.translate(11, (T + H - B) / 2); c.rotate(-Math.PI / 2);
+    c.textAlign = 'center'; c.textBaseline = 'top';
+    c.fillText(ylab, 0, 0);
+    c.restore();
+}
+
+function drawRecon() {
+    if (!rcRes) return;
+    var k;
+
+    /* ---- 위: 막전압 ---- */
+    (function () {
+        var cv = $('rcCanvasV');
+        var dpr = window.devicePixelRatio || 1, rect = cv.getBoundingClientRect();
+        var W = Math.max(80, Math.round(rect.width)), H = Math.max(60, Math.round(rect.height));
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.clearRect(0, 0, W, H);
+
+        var L = 50, R = 12, T = 12, B = 28;
+        var xmax = rcRes.t[rcRes.t.length - 1] || 1;
+        var lo = Math.min.apply(null, rcRes.V), hi = Math.max.apply(null, rcRes.V);
+        var pad = (hi - lo) * 0.12 || 5; lo -= pad; hi += pad;
+        function X(t) { return L + t / xmax * (W - L - R); }
+        function Y(v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); }
+        rcAxes(c, W, H, L, R, T, B, xmax, lo, hi, 'Vm (mV)', function (v) { return v.toFixed(0); });
+
+        /* 자극 구간 */
+        c.fillStyle = 'rgba(27,110,194,0.07)';
+        c.fillRect(X(rcPar.t0), T, X(rcPar.t0 + rcPar.dur) - X(rcPar.t0), H - T - B);
+
+        /* 모델 기준 파형 (점선) */
+        if (rcRef && rcRef.t.length) {
+            c.strokeStyle = '#9db6cf'; c.lineWidth = 2; c.setLineDash([5, 4]);
+            c.beginPath();
+            var started = false;
+            for (k = 0; k < rcRef.t.length; k++) {
+                if (rcRef.t[k] > xmax) break;
+                var yy = rcRef.vm ? rcRef.vm[k] : null;
+                if (yy === null) break;
+                if (!started) { c.moveTo(X(rcRef.t[k]), Y(yy)); started = true; }
+                else c.lineTo(X(rcRef.t[k]), Y(yy));
+            }
+            c.stroke(); c.setLineDash([]);
+        }
+
+        /* 재구성 */
+        c.strokeStyle = '#c00000'; c.lineWidth = 1.8; c.beginPath();
+        for (k = 0; k < rcRes.t.length; k++) {
+            if (k === 0) c.moveTo(X(rcRes.t[k]), Y(rcRes.V[k]));
+            else c.lineTo(X(rcRes.t[k]), Y(rcRes.V[k]));
+        }
+        c.stroke();
+
+        c.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+        c.textAlign = 'right'; c.textBaseline = 'top';
+        c.fillStyle = '#c00000'; c.fillText('재구성 (α·β 적분)', W - R - 4, T + 3);
+        if (rcRef) { c.fillStyle = '#7f93a8'; c.fillText('모델 (HH 모드)', W - R - 4, T + 16); }
+    })();
+
+    /* ---- 아래: 게이트와 전도도 ---- */
+    (function () {
+        var cv = $('rcCanvasG');
+        var dpr = window.devicePixelRatio || 1, rect = cv.getBoundingClientRect();
+        var W = Math.max(80, Math.round(rect.width)), H = Math.max(60, Math.round(rect.height));
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.clearRect(0, 0, W, H);
+
+        var L = 50, R = 46, T = 12, B = 28;
+        var xmax = rcRes.t[rcRes.t.length - 1] || 1;
+        function X(t) { return L + t / xmax * (W - L - R); }
+        function Yg(v) { return T + (1 - v) * (H - T - B); }        // 게이트 0..1
+        rcAxes(c, W, H, L, R, T, B, xmax, 0, 1, '게이트 m·h·n',
+               function (v) { return v.toFixed(1); });
+
+        function line(arr, color, lab, labY) {
+            c.strokeStyle = color; c.lineWidth = 1.6; c.beginPath();
+            for (var j = 0; j < arr.length; j++) {
+                if (j === 0) c.moveTo(X(rcRes.t[j]), Yg(arr[j]));
+                else c.lineTo(X(rcRes.t[j]), Yg(arr[j]));
+            }
+            c.stroke();
+            if (lab) {
+                c.fillStyle = color; c.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+                c.textAlign = 'left'; c.textBaseline = 'middle';
+                c.fillText(lab, L + 4, labY);
+            }
+        }
+        line(rcRes.m, '#ff0000', 'm', T + 10);
+        line(rcRes.h, '#008080', 'h', T + 22);
+        line(rcRes.n, '#0000ff', 'n', T + 34);
+
+        /* 전도도는 오른쪽 축 */
+        var gmax = 0;
+        for (var j = 0; j < rcRes.gNa.length; j++) {
+            if (rcRes.gNa[j] > gmax) gmax = rcRes.gNa[j];
+            if (rcRes.gK[j] > gmax) gmax = rcRes.gK[j];
+        }
+        gmax = gmax || 1;
+        function Yc(v) { return T + (1 - v / (gmax * 1.08)) * (H - T - B); }
+        function gline(arr, color, dash) {
+            c.strokeStyle = color; c.lineWidth = 1.4; c.setLineDash(dash);
+            c.beginPath();
+            for (var j = 0; j < arr.length; j++) {
+                if (j === 0) c.moveTo(X(rcRes.t[j]), Yc(arr[j]));
+                else c.lineTo(X(rcRes.t[j]), Yc(arr[j]));
+            }
+            c.stroke(); c.setLineDash([]);
+        }
+        gline(rcRes.gNa, '#e06666', [4, 3]);
+        gline(rcRes.gK, '#6a8fd6', [4, 3]);
+
+        c.fillStyle = '#68727f'; c.font = '10px "Segoe UI", Arial, sans-serif';
+        c.textAlign = 'left'; c.textBaseline = 'middle';
+        for (var q = 0; q <= 2; q++) {
+            var v = gmax * 1.08 * q / 2;
+            c.fillText(v.toFixed(2), W - R + 4, Yc(v));
+        }
+        c.save();
+        c.translate(W - 8, (T + H - B) / 2); c.rotate(-Math.PI / 2);
+        c.textAlign = 'center'; c.textBaseline = 'top';
+        c.fillText('g (점선, nA/mV)', 0, 0);
+        c.restore();
+        c.textAlign = 'center'; c.textBaseline = 'top';
+        c.fillText('시간 (ms)', (L + W - R) / 2, H - 13);
+    })();
+}
+
+function renderReconResult() {
+    if (!rcRes) return;
+    var lm = RECON.landmarks(rcRes, rcPar.t0);
+    var h = ['<table><thead><tr><th>시점</th><th>t (ms)</th><th>Vm (mV)</th>' +
+             '<th>m</th><th>h</th><th>n</th><th>m³h</th><th>n⁴</th>' +
+             '<th>INa (nA)</th><th>IK (nA)</th></tr></thead><tbody>'];
+    lm.forEach(function (p) {
+        h.push('<tr><td style="text-align:left">' + p.label + '</td>' +
+               '<td>' + p.t.toFixed(2) + '</td><td>' + p.V.toFixed(2) + '</td>' +
+               '<td>' + p.m.toFixed(3) + '</td><td>' + p.h.toFixed(3) + '</td>' +
+               '<td>' + p.n.toFixed(3) + '</td>' +
+               '<td>' + (p.m * p.m * p.m * p.h).toFixed(4) + '</td>' +
+               '<td>' + (p.n * p.n * p.n * p.n).toFixed(4) + '</td>' +
+               '<td>' + p.INa.toFixed(3) + '</td><td>' + p.IK.toFixed(3) + '</td></tr>');
+    });
+    h.push('</tbody></table>');
+
+    var peak = Math.max.apply(null, rcRes.V);
+    var refPeak = (rcRef && rcRef.vm) ? Math.max.apply(null, rcRef.vm) : null;
+
+    var s = '<div class="sdfit">';
+    s += '<div class="big">α·β 만 있으면 활동전압이 나옵니다</div>';
+    s += '<div>이 패널은 <b>HeartModel 을 쓰지 않고</b> 아래 식만으로 처음부터 적분한 ' +
+         '결과입니다(<code>js/reconstruct.js</code>).<br>' +
+         '&nbsp;&nbsp;① <b>dm/dt = α_m(V)(1−m) − β_m(V)m</b> &nbsp;(h, n 도 같은 꼴)<br>' +
+         '&nbsp;&nbsp;② <b>I_Na = ḡ_Na·m³h·(V−E_Na)</b>, <b>I_K = ḡ_K·n⁴·(V−E_K)</b><br>' +
+         '&nbsp;&nbsp;③ <b>C·dV/dt = −(I_Na + I_K + I_leak) + I_stim</b><br>' +
+         'II-1 ~ II-5 에서 얻는 것이 바로 ① 의 α·β 와 ② 의 ḡ 이므로, ' +
+         '<b>실험에서 측정한 값만으로 활동전압을 그려낼 수 있다</b>는 것이 HH 의 결론입니다.</div>';
+
+    var gap = (refPeak !== null) ? Math.abs(peak - refPeak) : null;
+    s += '<div class="def"><b>검증</b> — 재구성 파형(빨강)과 모델의 HH 모드 계산(회색 점선)을 ' +
+         '같은 정지막전위에서 출발시켜 겹쳤습니다. 재구성 정점 <b>' + peak.toFixed(2) + ' mV</b>' +
+         (refPeak !== null ? ', 모델 정점 <b>' + refPeak.toFixed(2) + ' mV</b>' +
+            ' (차이 ' + gap.toFixed(2) + ' mV)' : '') +
+         '. 서로 독립적으로 짠 코드가 같은 답을 내므로 ①~③ 이외에 숨은 요소가 ' +
+         '없다는 뜻입니다.</div>';
+
+    s += '<div class="def"><b>인과 고리</b> — 표를 위에서 아래로 읽으면 기전이 보입니다.<br>' +
+         '<b>V ↑ → α_m ↑ → m ↑ → g_Na ↑ → I_Na 내향 → V ↑</b> 가 양성 되먹임(상승기)이고,<br>' +
+         '여기에 느린 <b>h ↓</b> (Na 불활성화) 와 <b>n ↑</b> (K 활성화) 가 뒤따라 ' +
+         '재분극을 만듭니다. m 은 빠르고 h·n 은 느리다는 <b>시간상수 차이</b>가 ' +
+         '활동전압의 모양을 결정합니다.</div>';
+
+    if (rcPar.measured) {
+        s += '<div class="def">지금은 <b>n 의 α·β 를 II-4 에서 측정한 값</b>으로 바꿔 적분했습니다 ' +
+             '(m·h 는 HH 식 — 매뉴얼의 전압고정 프로토콜로는 τ_m·τ_h 까지는 구하지 않습니다). ' +
+             '<b>측정값으로도 활동전압이 그대로 재구성됩니다</b>' +
+             (rcHHpeak !== null
+                ? ' : 정점 <b>' + peak.toFixed(2) + ' mV</b> (측정 α·β) vs <b>' +
+                  rcHHpeak.toFixed(2) + ' mV</b> (HH 식).' : '.') +
+             ' 다만 정점이 더 높고 재분극이 느려집니다. 측정한 α_n 이 작고 τ 가 짧게 ' +
+             '나온 탓에 n 이 덜 열려 K 전류가 모자라기 때문인데, 그 편향은 II-4 에서 ' +
+             '설명한 측정 방법의 가정(n₀ ≠ 0, 옴형 전도도)에서 옵니다. ' +
+             '<b>실험값만으로 활동전압을 재구성할 수 있다</b>는 결론은 그대로이고, ' +
+             '측정 오차가 파형에 어떻게 드러나는지도 함께 볼 수 있습니다.</div>';
+    } else {
+        s += '<div class="def">위의 <i>n 의 α·β 를 II-4 측정값으로</i> 를 체크하면, ' +
+             'HH 식 대신 <b>II-4 에서 직접 잰 α_n·β_n</b> 으로 적분합니다. ' +
+             '실험값만으로도 같은 활동전압이 나오는지 확인해 보세요.</div>';
+    }
+    s += '</div>';
+
+    $('rcRes').innerHTML = h.join('') + s;
+}
+
+function reconCsv() {
+    if (!rcRes) { setStatus('재구성: 먼저 [재구성 실행] 을 하세요.'); return; }
+    var lines = ['# action potential reconstructed from alpha/beta only',
+                 '# ENa(mV)\t' + rcRes.ENa.toFixed(3) + '\tEK(mV)\t' + rcRes.EK.toFixed(3),
+                 't(ms)\tVm(mV)\tm\th\tn\tgNa(nA/mV)\tgK(nA/mV)\tINa(nA)\tIK(nA)\tdVdt(mV/ms)'];
+    for (var i = 0; i < rcRes.t.length; i += 5) {
+        lines.push([rcRes.t[i].toFixed(3), rcRes.V[i].toFixed(4), rcRes.m[i].toFixed(5),
+                    rcRes.h[i].toFixed(5), rcRes.n[i].toFixed(5), rcRes.gNa[i].toFixed(6),
+                    rcRes.gK[i].toFixed(6), rcRes.INa[i].toFixed(5),
+                    rcRes.IK[i].toFixed(5), rcRes.dVdt[i].toFixed(4)].join('\t'));
+    }
+    saveText('ap_reconstruction.txt', lines.join('\r\n'));
+}
+
+/* ---------------- tabs -------------------------------------------- */
+function initTabs() {
+    var btns = document.querySelectorAll('.tabbtn');
+    Array.prototype.forEach.call(btns, function (b) {
+        b.addEventListener('click', function () {
+            Array.prototype.forEach.call(btns, function (x) { x.classList.remove('active'); });
+            b.classList.add('active');
+            Array.prototype.forEach.call(document.querySelectorAll('.tabpane'), function (p) {
+                p.classList.toggle('active', p.id === b.dataset.pane);
+            });
+        });
+    });
+}
+
+/* ---------------- boot -------------------------------------------- */
+function boot() {
+    buildPulsePanel(PARAMS.PRM['default']);
+    buildParamTable($('sfPane'),    PARAMS.SFS_NAMES, 'sf',  PARAMS.SFS['default'], 2);
+    buildParamTable($('ionPane'),   PARAMS.ION_NAMES, 'ion', PARAMS.ION, 4);
+    buildParamTable($('conPane'),   PARAMS.CON_NAMES, 'con', PARAMS.CON, 2);
+    buildChannelList();
+    buildPresetSelects();
+    initTabs();
+
+    /* Force the model-behaviour selectors on every load, so a browser that
+       restores previous form state cannot silently change the model.
+       Defaults follow the practical manual (see README). */
+    $('selDrive').value = 'ohmic';
+    $('selSign').value = '-1';
+    $('chkHH').checked = false;
+    $('selManual').value = '';
+
+    graphCur = new Graph($('canvasCur'));
+    graphVol = new Graph($('canvasVol'));
+    cursorSetup('wrapCur', graphCur, false);
+    cursorSetup('wrapVol', graphVol, true);
+
+    inputValueFromControl();
+    initializeGraphCtrl();
+
+    $('btnPlay').addEventListener('click', onPlay);
+    $('btnStop').addEventListener('click', onStopToggle);
+    $('btnAbort').addEventListener('click', onAbort);
+    /* 원본 툴바의 "Try New Cell": default.prm / default.sfs 를 다시 선택하고
+       이온농도를 포함한 모든 상태를 프로그램 시작 상태로 되돌린다. */
+    $('btnNewCell').addEventListener('click', function () {
+        model = new HeartModel();
+        model.NewCell = true;
+        $('selManual').value = '';
+        applyPrm('default'); $('selPrm').value = 'default';
+        applySfs('default'); $('selSfs').value = 'default';
+        buildParamTable($('ionPane'), PARAMS.ION_NAMES, 'ion', PARAMS.ION, 4);
+        buildParamTable($('conPane'), PARAMS.CON_NAMES, 'con', PARAMS.CON, 2);
+        inputValueFromControl();
+        initializeGraphCtrl();
+        setStatus('새 세포 — default.prm / default.sfs 로 초기화되었습니다.');
+    });
+
+    $('selManual').addEventListener('change', function () { applyManual(this.value); });
+
+    $('selPrm').addEventListener('change', function () {
+        $('selManual').value = '';
+        applyPrm(this.value);
+        /* the Windows version keeps a matching .sfs beside each protocol */
+        var m = Object.keys(PARAMS.SFS).filter(function (k) {
+            return k.toLowerCase() === this.value.toLowerCase();
+        }, this)[0];
+        if (m) { applySfs(m); $('selSfs').value = m; }
+        inputValueFromControl();
+        initializeGraphCtrl();
+    });
+    $('selSfs').addEventListener('change', function () {
+        $('selManual').value = '';
+        applySfs(this.value);
+    });
+
+    $('fileInput').addEventListener('change', function () {
+        if (this.files && this.files[0]) loadUserFile(this.files[0]);
+        this.value = '';
+    });
+
+    $('btnApplyRange').addEventListener('click', applyRange);
+    ['cur', 'vol', 'both'].forEach(function (w) {
+        $('btnAuto' + (w === 'cur' ? 'Cur' : w === 'vol' ? 'Vol' : 'Both'))
+            .addEventListener('click', function () {
+                var fit = autoScale(w);
+                setStatus(fit || '자동 스케일: 그려진 파형이 없습니다. 먼저 [실행] 하세요.');
+            });
+    });
+    $('btnCurUp').addEventListener('click', function () { scaleY(graphCur, 'curMin', 'curMax', 0.5); });
+    $('btnCurDown').addEventListener('click', function () { scaleY(graphCur, 'curMin', 'curMax', 2); });
+    $('btnVolUp').addEventListener('click', function () { scaleY(graphVol, 'volMin', 'volMax', 0.5); });
+    $('btnVolDown').addEventListener('click', function () { scaleY(graphVol, 'volMin', 'volMax', 2); });
+
+    $('btnSaveData').addEventListener('click', saveData);
+    $('btnPngCur').addEventListener('click', function () { savePng(graphCur, 'current.png'); });
+    $('btnPngVol').addEventListener('click', function () { savePng(graphVol, 'voltage.png'); });
+
+    $('btnCheckAll').addEventListener('click', function () {
+        CHANNELS.forEach(function (ch) { $('chk' + ch.i).checked = true; ui.check[ch.i] = true; });
+    });
+    $('btnCheckNone').addEventListener('click', function () {
+        CHANNELS.forEach(function (ch) { $('chk' + ch.i).checked = false; ui.check[ch.i] = false; });
+    });
+
+    ['chkHH', 'chkG', 'chkNMH'].forEach(function (id) {
+        $(id).addEventListener('change', function () {
+            if (id === 'chkNMH' && $(id).checked) $('chkG').checked = false;
+            if (id === 'chkG' && $(id).checked) $('chkNMH').checked = false;
+            inputValueFromControl();
+            convertUnit();
+            graphCur.redraw();
+            if (id === 'chkHH') updateDriveNote();
+        });
+    });
+    $('selDrive').addEventListener('change', updateDriveNote);
+    updateDriveNote();
+
+    $('selReadEp').addEventListener('change', renderReadout);
+    $('btnClearMark').addEventListener('click', function () { clearMarks(true); });
+    $('btnZoomMark').addEventListener('click', zoomToMarks);
+    $('btnZoomOut').addEventListener('click', zoomOut);
+    $('btnMeasure').addEventListener('click', function () { refreshMeasure(true); });
+    $('chkMeasureAB').addEventListener('change', function () { refreshMeasure(false); });
+    $('btnMeasureCsv').addEventListener('click', measureCsv);
+    $('btnSDRun').addEventListener('click', runStrengthDuration);
+    $('btnSDCsv').addEventListener('click', sdCsv);
+    $('btnSDHide').addEventListener('click', function () { $('sdBox').hidden = true; });
+    $('btnTauRun').addEventListener('click', runTauSweep);
+    $('btnTauCsv').addEventListener('click', tauCsv);
+    $('btnTauHide').addEventListener('click', function () { $('tauBox').hidden = true; });
+    $('tauPlot').addEventListener('change', drawTau);
+    /* 접이식 설명을 펴고 접으면 .plots 의 스크롤바 유무가 바뀌어
+       캔버스 폭이 달라질 수 있으므로 다시 그린다 */
+    Array.prototype.forEach.call(document.querySelectorAll('details.how'), function (d) {
+        d.addEventListener('toggle', function () {
+            graphCur.resize(); graphCur.redraw();
+            graphVol.resize(); graphVol.redraw();
+            drawOverlay(graphCur, $('ovCur'));
+            drawOverlay(graphVol, $('ovVol'));
+            if (!$('sdBox').hidden) drawSD();
+            if (!$('tauBox').hidden) drawTau();
+            if (!$('reconBox').hidden) drawRecon();
+        });
+    });
+    $('btnReconRun').addEventListener('click', runReconstruct);
+    $('btnReconCsv').addEventListener('click', reconCsv);
+    $('btnReconHide').addEventListener('click', function () { $('reconBox').hidden = true; });
+    $('btnMeasureHide').addEventListener('click', function () { $('measureBox').hidden = true; });
+
+    window.addEventListener('resize', function () {
+        graphCur.resize(); graphCur.redraw();
+        graphVol.resize(); graphVol.redraw();
+        drawOverlay(graphCur, $('ovCur'));
+        drawOverlay(graphVol, $('ovVol'));
+        drawPulsePreview();
+        if (!$('sdBox').hidden) drawSD();
+        if (!$('tauBox').hidden) drawTau();
+        if (!$('reconBox').hidden) drawRecon();
+    });
+
+    /* 진폭 단위와 프로토콜 미리보기는 클램프 모드에 따라 달라진다 */
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="mode"]'), function (r) {
+        r.addEventListener('change', function () { updatePulseUnits(); drawPulsePreview(); });
+    });
+    $('chkEpColor').addEventListener('change', updateEpLegend);
+    updateEpLegend();
+    updateMeasureABState(false);
+    drawPulsePreview();
+
+    /* 원본 툴바와 같은 단축키: F2 실행, Space 일시정지, Esc 중단 */
+    document.addEventListener('keydown', function (e) {
+        var tag = (e.target && e.target.tagName || '').toLowerCase();
+        var typing = tag === 'input' || tag === 'select' || tag === 'textarea';
+        if (e.key === 'F2') { e.preventDefault(); if (!run.active) onPlay(); return; }
+        if (e.key === 'Escape') { e.preventDefault(); onAbort(); return; }
+        if (e.key === ' ' && !typing) { e.preventDefault(); onStopToggle(); }
+    });
+
+    updateButtons();
+    setStatus('준비됨 — [실행] 또는 F2 를 누르세요.');
+    displayIonConc();
+
+    /* handy for inspecting the run from the browser console */
+    window.HeartApp = {
+        get model() { return model; },
+        get graphCur() { return graphCur; },
+        get graphVol() { return graphVol; },
+        get recorded() { return recorded; },
+        get columns() { return recordCols; },
+        ui: ui, run: run
+    };
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+
+})();
+
+</script>
+</body>
+</html>

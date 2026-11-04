@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>활동전압 시뮬레이션 실습 매뉴얼</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --line:#d7dbe0; --ink:#1d2530; --muted:#68727f;
+    --accent:#1b6ec2; --accent2:#0f8a5f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.75 "Malgun Gothic","Segoe UI",Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 80px}
+
+  header.top{background:#22303f;color:#fff;padding:24px 0 22px;margin-bottom:26px}
+  header.top .wrap{padding-bottom:0}
+  header.top h1{margin:0;font-size:25px;font-weight:600;letter-spacing:-.2px}
+  header.top .sub{margin-top:6px;font-size:13px;color:#9fb1c4;line-height:1.6}
+
+  h2{margin:44px 0 12px;padding:8px 0 7px;font-size:20px;border-bottom:2px solid var(--accent);
+     color:#132b45}
+  h3{margin:28px 0 8px;font-size:16.5px;color:#132b45}
+  h3 .tag{font-size:12.5px;font-weight:400;color:var(--muted)}
+  h4{margin:17px 0 5px;font-size:14.5px;color:var(--accent)}
+  p{margin:7px 0}
+  ul,ol{margin:7px 0;padding-left:24px}
+  li{margin:3px 0}
+  code,kbd{font-family:Consolas,"D2Coding",monospace;font-size:13px;
+     background:#e9edf1;padding:1px 4px;border-radius:3px}
+  kbd{border:1px solid #c3ccd4;box-shadow:0 1px 0 #c3ccd4;background:#fff}
+  b.ui{background:#e8f1fb;border:1px solid #bcd7f0;border-radius:3px;padding:0 5px;
+       font-weight:600;color:#14538f;white-space:nowrap}
+  .q{color:#7a1f6b;font-weight:600}
+  .eq{text-align:center;font-family:Consolas,"D2Coding",monospace;font-size:14.5px;
+      background:#fff;border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin:12px 0}
+
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#fff}
+  th,td{border:1px solid var(--line);padding:5px 9px;text-align:left;vertical-align:top}
+  th{background:#eef1f4;font-weight:600;white-space:nowrap}
+  td.n,th.n{text-align:right;font-family:Consolas,monospace;white-space:nowrap}
+
+  .box{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);
+       border-radius:3px;padding:10px 14px;margin:14px 0}
+  .box.tip{border-left-color:var(--accent2);background:#f4fbf7}
+  .box.why{border-left-color:#5b7fa6;background:#f6f9fc}
+  .box.why > .t{color:#2d5278}
+  .box.why dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:6px 0 0}
+  .box.why dt{font-weight:700;color:#2d5278;white-space:nowrap}
+  .box.why dd{margin:0}
+  .box.warn{border-left-color:#d9a441;background:#fdf8ef}
+  .box > .t{font-weight:700;font-size:13.5px;margin-bottom:3px;display:block}
+  .box.tip > .t{color:#0b6b4a}
+  .box.warn > .t{color:#8a5a12}
+  .box p:first-of-type{margin-top:0}
+  .box p:last-child{margin-bottom:0}
+
+  .steps{counter-reset:s;list-style:none;padding-left:0;margin:10px 0}
+  .steps > li{counter-increment:s;position:relative;padding:3px 0 3px 30px;margin:0}
+  .steps > li::before{content:counter(s);position:absolute;left:0;top:4px;
+       width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;
+       font-size:12px;font-weight:700;text-align:center;line-height:20px}
+
+  .setup{background:#fff;border:1px solid var(--line);border-radius:4px;margin:12px 0;
+         font-size:13.5px;overflow:hidden}
+  .setup > .hd{background:#eef1f4;padding:4px 10px;font-weight:700;font-size:12.5px;
+         color:var(--muted);letter-spacing:.3px;border-bottom:1px solid var(--line)}
+  .setup dl{display:grid;grid-template-columns:150px 1fr;margin:0}
+  .setup dt{padding:4px 10px;color:var(--muted);font-size:12.5px;border-top:1px solid #eef1f4}
+  .setup dd{padding:4px 10px;margin:0;border-top:1px solid #eef1f4}
+  .setup dl > dt:nth-of-type(1),.setup dl > dd:nth-of-type(1){border-top:0}
+
+  nav.toc{background:#fff;border:1px solid var(--line);border-radius:5px;padding:12px 18px}
+  nav.toc .t{font-weight:700;margin-bottom:5px}
+  nav.toc ol{margin:0;padding-left:20px;font-size:14px}
+  nav.toc a{color:var(--accent);text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+
+  footer.bot{margin-top:50px;padding:14px 0;border-top:1px solid var(--line);
+       font-size:12.5px;color:var(--muted)}
+
+  @media (max-width:560px){
+    body{font-size:14px}
+    .wrap{padding:0 14px 60px}
+    header.top h1{font-size:19px}
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .setup dl{grid-template-columns:1fr}
+    .setup dt{padding-bottom:0}
+    .setup dd{padding-top:1px;border-top:0}
+    .setup dl > dd:nth-of-type(1){border-top:0}
+  }
+
+  @media print{
+    body{background:#fff;font-size:11pt}
+    header.top{background:#fff;color:#000;border-bottom:2px solid #000}
+    header.top .sub{color:#444}
+    .wrap{max-width:none;padding:0}
+    nav.toc{display:none}
+    h2,h3{page-break-after:avoid}
+    table,.box,.setup,.eq{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Hodgkin–Huxley 모델에 의한 활동전압 시뮬레이션</h1>
+    <div class="sub">실습 매뉴얼 &nbsp;·&nbsp; 생리학 실습</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<p>이 프로그램은 교과서 제2장(신경축삭 활동전압의 Hodgkin–Huxley 모델, 이하 H-H 모델)과
+제6장(심근세포의 활동전압)에서 배우는 다양한 세포막 전류를 이용하여 활동전압을
+시뮬레이션합니다.</p>
+
+<p>오늘 실습에서는 <b>HH 모델에 의한 활동전압의 성질</b>과, 이에 기여하는
+<b>Na 전류와 K 전류의 성질</b>을 살펴봅니다. 실습 내내 쓰는 전류는 두 가지입니다.</p>
+<ul>
+  <li><code>Na 전류 (HH) INa</code> — 빠르게 활성화되고 빠르게 불활성화되는 내향전류</li>
+  <li><code>K 전류 (HH) IKdr</code> — 느리게 활성화되고 불활성화가 없는 외향전류</li>
+</ul>
+<p>여기에 실제 막전압이 E<sub>K</sub> 와 일치하지 않도록 GirK(G protein-coupled inward
+rectifier K 전류)와 leak 전류(INSC, nonselective cation current)가 함께 들어 있습니다.
+나머지 심근세포 전류들은 실습 조건에서 모두 0 으로 꺼져 있습니다.</p>
+
+<nav class="toc">
+  <div class="t">차례</div>
+  <ol>
+    <li><a href="#start">시작하기</a> — 실행 · 화면 · 자극 프로토콜 · 값 읽는 법</li>
+    <li><a href="#part1">I. 활동전압 실험 (1)</a> — 단일 활동전압 · 불응기</li>
+    <li><a href="#part2">II. 전압고정(Voltage Clamp) 실험</a> — activation · inactivation ·
+        τ · α·β · 활동전압 재구성</li>
+    <li><a href="#part3">III. 활동전압 실험 (2)</a> — 역치전류 · strength–duration ·
+        순응 · anodal break</li>
+    <li><a href="#appendix">부록</a> — 모델 식 · 전류 약자 · 설정값 일람 · 데이터 내보내기</li>
+  </ol>
+</nav>
+
+
+<h2 id="start">0. 시작하기</h2>
+
+<h3>0-1. 실행</h3>
+<p>크롬이나 엣지에서 <b>주소를 열면 바로 실행됩니다.</b> 설치할 것도, 로그인할 것도
+없습니다. 계산은 전부 브라우저 안에서 돌아가므로 한 번 열리고 나면 네트워크를
+쓰지 않습니다.</p>
+<p><b>오프라인으로 쓰려면</b> <code>heart_hh_standalone.html</code> 파일 하나만
+내려받아 두세요. 모든 코드와 실습용 파라미터가 그 파일 안에 들어 있어,
+더블클릭하면 인터넷 없이 똑같이 동작합니다.</p>
+<p>휴대폰·태블릿에서도 열립니다. 화면이 좁으면 <b>그래프 아래로 설정 패널이 이어지는
+한 줄 배치</b>로 바뀌고 전체가 위아래로 스크롤됩니다. 다만 그래프를 읽고 커서로 값을
+재야 하므로 <b>실습은 노트북 화면에서 하는 편이 훨씬 수월합니다.</b></p>
+
+<h3>0-2. 화면 구성</h3>
+<table>
+  <tr><th style="width:150px">위치</th><th>내용</th></tr>
+  <tr><td>맨 위 머리띠</td>
+      <td><b class="ui">전류고정 (AP)</b> / <b class="ui">전압고정 (VC)</b> 모드 선택,
+          <b class="ui">▶ 실행</b> <kbd>F2</kbd>,
+          <b class="ui">❚❚ 일시정지</b> <kbd>Space</kbd>,
+          <b class="ui">■ 중단</b> <kbd>Esc</kbd>,
+          <b class="ui">새 세포</b>, 에피소드 진행 막대</td></tr>
+  <tr><td>왼쪽 위 그래프</td>
+      <td><b>전류 / Current</b> — Na 내향전류는 빨간색, K 외향전류는 파란색</td></tr>
+  <tr><td>왼쪽 아래 그래프</td><td><b>막전위 / Membrane potential</b></td></tr>
+  <tr><td>그 아래 카드들</td>
+      <td><b>에피소드별 측정값</b> 표, <b>강도–지속시간 곡선</b>,
+          <b>IK 활성화 시간상수 τ</b>, <b>활동전압 재구성</b>.
+          각 카드의 버튼을 누르면 펼쳐집니다</td></tr>
+  <tr><td>오른쪽 패널</td>
+      <td>위에서부터 <b class="ui">실습 항목</b>·파일 선택 →
+          <b>펄스</b>/<b>채널 배율</b>/<b>이온</b>/<b>실험조건</b> 탭 →
+          <b>표시할 전류</b> → <b>계산 · 기록</b></td></tr>
+</table>
+
+<div class="box tip">
+  <span class="t">가장 먼저 — 실습 항목 드롭다운</span>
+  <p>오른쪽 맨 위 <b class="ui">실습 항목</b> 에서 하나를 고르면 그 실험에 필요한
+  <b>자극 프로토콜 · 채널 설정 · 모드 · 그래프 표시범위 · 표시할 전류</b>가
+  한 번에 맞춰집니다. 이 매뉴얼의 모든 실험은 여기서 시작합니다.</p>
+  <p>지금 <code>I-1. 단일 활동전압 · 역치</code> 를 고르고 <b class="ui">▶ 실행</b>
+  (<kbd>F2</kbd>)을 눌러 보세요. 위 창에 Na·K 전류가, 아래 창에 활동전압이 그려집니다.</p>
+</div>
+
+<h3 id="protocol">0-3. 자극 프로토콜 이해하기</h3>
+<p>오른쪽 <b>펄스</b> 탭에서 자극 파형을 만듭니다. 한 번의 자극은 <b>다섯 구간</b>이
+순서대로 이어진 것입니다.</p>
+<div class="eq">유지(Holding) → 펄스 1 → 펄스 2 → 펄스 3 → 복귀(Return)</div>
+<p>각 구간마다 <b>시작값 · 끝값 · 지속시간</b>을 정합니다. 시작값과 끝값이 다르면
+그 구간은 경사(ramp)가 됩니다.</p>
+<table>
+  <tr><th style="width:190px">항목</th><th>뜻</th></tr>
+  <tr><td>유지 준위 / 유지 시간</td><td>자극 전 기준 상태</td></tr>
+  <tr><td>펄스 1 · 2 · 3</td><td>본 자극. 실험에 따라 한 개만 쓰기도, 셋을 다 쓰기도 합니다</td></tr>
+  <tr><td>복귀 준위 / 복귀 시간</td><td>자극 후 회복 구간</td></tr>
+  <tr><td><b>펄스 2 진폭 증분</b></td><td>에피소드가 하나 늘 때마다 펄스 2 의 크기를 이만큼 더합니다</td></tr>
+  <tr><td><b>펄스 2 시간 증분</b></td><td>에피소드가 하나 늘 때마다 펄스 2 의 길이를 이만큼 늘립니다</td></tr>
+  <tr><td><b>에피소드 수</b></td><td>위 증분을 적용하며 몇 번 반복할지</td></tr>
+  <tr><td>자극 간격</td><td>한 에피소드의 기록 길이 = 그래프의 시간축 범위.
+      다섯 구간의 합보다 작으면 자동으로 늘어납니다</td></tr>
+</table>
+
+<div class="box">
+  <span class="t">자극의 단위와 부호</span>
+  <ul>
+    <li><b>단위</b> — <b class="ui">전류고정 (AP)</b> 모드에서는 <b>nA</b>,
+        <b class="ui">전압고정 (VC)</b> 모드에서는 <b>mV</b>.
+        펄스 탭의 단위 표시가 모드에 따라 바뀝니다.</li>
+    <li><b>부호</b> — 전류고정 모드에서 <b>(+) 는 내향전류 = 탈분극</b>,
+        <b>(−) 는 외향전류 = 과분극</b> 입니다.</li>
+  </ul>
+</div>
+
+<p>펄스 탭 맨 위의 <b>미리보기</b>에 지금 설정된 자극 파형이 그려집니다
+(<b>첫 에피소드는 실선, 마지막 에피소드는 점선</b>). 값을 고치면 즉시 반영되므로,
+<b>실행하기 전에 어떤 자극이 들어가는지 반드시 확인</b>하세요.</p>
+
+<div class="box warn">
+  <span class="t">두 번째 실행은 직전 상태에서 이어집니다</span>
+  <p><b class="ui">▶ 실행</b> 을 다시 누르면 직전 실행이 끝난 시점의 전류·막전위에서
+  이어서 계산합니다. 조건을 바꿔 공정하게 비교하려면 반드시 <b class="ui">새 세포</b> 를
+  먼저 누르세요. <b class="ui">새 세포</b> 는 자극 프로토콜·채널 배율·이온농도를
+  모두 처음 상태로 되돌립니다. 따라서 <b>값을 직접 고칠 때는
+  「새 세포 → 값 수정 → 실행」 순서</b>를 지켜야 합니다.</p>
+</div>
+
+<h3 id="tools">0-4. 값 읽는 법</h3>
+
+<h4>① 커서 — 마우스를 올리면 값이 뜹니다</h4>
+<p>전류 그래프 위에 마우스를 올리면 그 시각의 <b>표시 중인 모든 전류와 막전위</b>가
+그래프 바로 아래 줄에 색깔과 함께 나옵니다. 에피소드를 겹쳐 그렸을 때 어느 것을 읽을지는
+<b class="ui">커서</b> 옆 드롭다운에서 고릅니다.</p>
+
+<h4>② A·B 구간 — 두 번 클릭</h4>
+<p>그래프를 클릭하면 <b>A</b>, 한 번 더 클릭하면 <b>B</b> 가 찍히고 두 지점의 값과 차이
+(Δt, ΔV, ΔI)가 표시됩니다. 지속시간이나 간격을 잴 때 씁니다.</p>
+<ul>
+  <li><b class="ui">A·B 확대</b> — 그 구간만 시간축을 확대</li>
+  <li><b class="ui">전체 보기</b> — 되돌리기</li>
+  <li><b class="ui">A·B 지우기</b> — 표식 삭제</li>
+</ul>
+
+<h4>③ 에피소드별 측정표</h4>
+<p><b class="ui">측정표 만들기</b> 를 누르면(A·B 를 찍으면 자동으로) 에피소드마다
+다음 값이 표로 정리됩니다.</p>
+<table>
+  <tr><th style="width:190px">열</th><th>뜻</th></tr>
+  <tr><td><code>pulse2 (nA)</code> 또는 <code>step (mV)</code></td>
+      <td>그 에피소드의 실제 자극 세기 — <b>몇 번째인지 셀 필요가 없습니다</b></td></tr>
+  <tr><td><code>Vm max</code> · <code>t max</code></td><td>막전위 최고값(overshoot)과 그 시각</td></tr>
+  <tr><td><code>Vm min</code> · <code>t min</code></td><td>막전위 최저값(AHP)과 그 시각</td></tr>
+  <tr><td><code>APD@-20</code></td><td>막전위가 −20 mV 를 넘어 있던 시간(전류고정 모드에서만)</td></tr>
+  <tr><td>전류마다 <code>max</code>/<code>min</code> 과 그 시각</td>
+      <td><b>Na 전류는 내향이므로 <code>min</code></b>,
+          <b>K 전류는 외향이므로 <code>max</code></b> 가 정점입니다</td></tr>
+</table>
+<p>활동전압이 발생한 에피소드는 <span style="background:#eaf7ee">연한 초록색</span>으로
+칠해집니다. A·B 를 찍은 뒤 <b class="ui">A·B 구간만</b> 을 켜면 <b>그 구간 안에서만</b>
+계산하므로, 전압고정 실험에서 시험펄스 구간만 지정해 정점을 읽을 수 있습니다.
+<b class="ui">CSV 저장</b> 으로 엑셀에 바로 넘깁니다.</p>
+
+<h4>④ 게이트와 전도도 보기</h4>
+<p>오른쪽 <b>표시할 전류</b> 아래에서 켭니다.</p>
+<ul>
+  <li><b class="ui">m · h · n (게이트) 표시</b> — 전류창에 게이트 열림확률을 그립니다.
+      <span style="color:#f00">■</span> m,
+      <span style="color:#008080">■</span> h,
+      <span style="color:#00f">■</span> n. Y 범위를 <code>−1 ~ 1</code> 로 바꾸면 잘 보입니다.</li>
+  <li><b class="ui">gNa · gK (전도도) 표시</b> — 전도도를 그립니다.</li>
+</ul>
+<p>활동전압의 <b>기전</b>을 설명해야 하는 문항에서는 이 두 가지를 켜고 보는 것이
+가장 빠릅니다.</p>
+
+<h3>0-5. 실습 항목 한눈에</h3>
+<table>
+  <tr><th style="width:60px">항목</th><th>내용</th><th>모드</th><th>에피소드</th></tr>
+  <tr><td>I-1</td><td>단일 활동전압 · 역치 (all-or-none)</td><td>AP</td><td class="n">10</td></tr>
+  <tr><td>I-1 2)3)</td><td>IKdr·INa 크기를 바꿔 보기</td><td>AP</td><td class="n">1</td></tr>
+  <tr><td>I-2</td><td>불응기 (paired pulse)</td><td>AP</td><td class="n">15</td></tr>
+  <tr><td>II-1</td><td>INa activation</td><td>VC</td><td class="n">17</td></tr>
+  <tr><td>II-2</td><td>INa inactivation · window current</td><td>VC</td><td class="n">10</td></tr>
+  <tr><td>II-3</td><td>IK activation</td><td>VC</td><td class="n">11</td></tr>
+  <tr><td>II-4 · II-5</td><td>IK 시간상수 τ, α<sub>n</sub>·β<sub>n</sub></td>
+      <td>VC</td><td class="n">II-3 설정 사용</td></tr>
+  <tr><td>II-6</td><td>활동전압 재구성</td><td>—</td><td class="n">전용 패널</td></tr>
+  <tr><td>III-1</td><td>역치전류 · strength–duration 곡선</td><td>AP</td><td class="n">5</td></tr>
+  <tr><td>III-2</td><td>순응 (accommodation)</td><td>AP</td><td class="n">2</td></tr>
+  <tr><td>III-3</td><td>Anodal break</td><td>AP</td><td class="n">1</td></tr>
+</table>
+
+
+<h2 id="part1">I. 활동전압 실험 (1)</h2>
+
+<h3 id="i-1">I-1. 단일 활동전압 관찰</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 전부 아니면 전무</span>
+  <p>세포에 전류를 조금씩 늘려 가며 넣습니다. 약할 때는 막전위가 자극에 비례해
+  조금씩 올라갔다 가라앉을 뿐입니다 — <b>수동적인 등급반응(graded response)</b>.
+  그런데 어느 세기를 넘는 순간 반응의 <b>종류</b>가 바뀝니다. 막전위가 스스로
+  치솟았다가 0 mV 를 넘어 양수까지 갔다 돌아옵니다.</p>
+  <p>이 경계가 <b>역치(threshold)</b> 이고, 경계를 넘은 뒤의 반응은 자극을 더 키워도
+  <b>크기가 거의 변하지 않습니다</b>. 이것이 <b>실무율(all-or-none principle)</b>
+  입니다. 왜 그럴까요? 역치를 넘으면 <b>V↑ → m↑ → Na 내향전류↑ → V↑</b> 라는
+  <b>양성 되먹임</b>이 걸려, 그 뒤로는 자극이 아니라 <b>세포 자신의 Na 전류</b>가
+  파형을 만들기 때문입니다. 자극은 방아쇠일 뿐 파형의 크기를 정하지 않습니다.</p>
+  <p>이 실험에서 읽어 둘 양들입니다.</p>
+  <dl>
+    <dt>역치전류 · 역치전압</dt><dd>방아쇠가 당겨지는 지점</dd>
+    <dt>overshoot</dt><dd>막전위가 0 mV 를 넘어 올라간 높이 — E<sub>Na</sub> 쪽으로
+        끌려간 정도</dd>
+    <dt>AHP</dt><dd>활동전압 뒤의 과분극 — K 전도도가 아직 큰 동안 막전위가
+        E<sub>K</sub> 쪽으로 끌려간 것</dd>
+    <dt>APD</dt><dd>활동전압의 지속시간(여기서는 −20 mV 기준)</dd>
+  </dl>
+  <p>2)·3) 에서는 IKdr 과 INa 의 크기를 바꿔 보며, 이 네 값이 <b>어느 전류가
+  무엇을 맡고 있는지</b>에 따라 어떻게 달라지는지 확인합니다.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>I-1. 단일 활동전압 · 역치 (APthreshold)</b></div>
+  <dl>
+    <dt>모드</dt><dd>전류고정 (AP)</dd>
+    <dt>자극</dt><dd>펄스 2 = <b>10 ms</b>, 세기가 <b>−0.20 nA 에서 0.05 nA 씩 증가</b>
+        → 10 에피소드 (−0.20 … +0.25 nA)</dd>
+    <dt>채널</dt><dd>INa(HH) = 3, IKdr(HH) = 2, GirK = 10, INSC = 3</dd>
+    <dt>표시</dt><dd>전류 −16 ~ 16 nA, 막전위 −120 ~ 80 mV</dd>
+  </dl>
+</div>
+<p><b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b>.</p>
+
+<h4>1) 자극 크기를 단계적으로 바꾸며 막전압 변화 관찰</h4>
+<ul>
+  <li class="q">역치 이전 자극에서 자극의 크기와 막전압 변동의 관계는?
+      <span style="font-weight:400">— 표의 <code>pulse2 (nA)</code> 와
+      <code>Vm max</code> 열을 비교하세요.</span></li>
+  <li class="q">활동전압이 발생한 역치 자극의 크기는?
+      <span style="font-weight:400">— 초록색으로 칠해진 첫 행의 <code>pulse2</code> 값입니다.
+      더 정밀한 값은 <a href="#iii-1">III-1</a> 의 자동 측정으로 구할 수 있습니다.</span></li>
+  <li class="q">활동전압 parameter 를 분석하시오 — threshold current, threshold voltage,
+      overshoot 의 크기, afterhyperpolarization (AHP) 의 크기,
+      AP duration (APD; −20 mV 에서 측정).
+      <span style="font-weight:400">— overshoot 는 <code>Vm max</code>, AHP 는
+      <code>Vm min</code>, APD 는 <code>APD@-20</code> 열입니다.
+      threshold voltage 는 막전위 그래프를 <b class="ui">A·B 확대</b> 로 상승기 직전까지
+      당겨 놓고 커서로 읽는 것이 가장 정확합니다.</span></li>
+  <li class="q">역치 이상의 자극이 활동전압 parameter 에 미치는 영향을 관찰하고
+      기전을 설명하시오 (all-or-none principle).</li>
+</ul>
+
+<h4>2) IKdr(HH) 를 반으로 줄이거나 두 배로 늘렸을 때</h4>
+<h4>3) INa(HH) 를 1/3 로 줄였을 때</h4>
+<div class="setup">
+  <div class="hd">실습 항목 → <b>I-1. 2)3) IKdr·INa 변화 (default)</b></div>
+  <dl>
+    <dt>자극</dt><dd>펄스 2 = 0.2 nA · 10 ms, 1 에피소드</dd>
+    <dt>바꿀 곳</dt><dd>오른쪽 <b>채널 배율</b> 탭 →
+        <code>K current (HH)</code> (기본 2) 또는 <code>Na current (HH)</code> (기본 3)</dd>
+  </dl>
+</div>
+<ol class="steps">
+  <li><b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b> — 기준값을 먼저 적어 둡니다.</li>
+  <li><b class="ui">새 세포</b> → 실습 항목을 다시 고름 → <b>채널 배율</b> 탭에서 값 수정
+      → <b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b>.</li>
+  <li>2) 는 IKdr 을 <code>1</code> 과 <code>4</code> 로, 3) 은 INa 를 <code>1</code> 로
+      바꿔 반복합니다.</li>
+</ol>
+<p class="q">역치자극 · AHP · APD · overshoot 가 어떻게 달라지는지 관찰하고,
+그 변화를 설명하시오.</p>
+<div class="box tip">
+  <span class="t">기전을 보려면</span>
+  <p><b class="ui">m · h · n (게이트) 표시</b> 를 켜고 전류 Y 범위를 <code>−1 ~ 1</code> 로
+  바꾸세요. IKdr 을 키우면 n 이 만드는 외향전류가 커져 재분극이 빨라지고 AHP 가 깊어집니다.
+  INa 를 줄이면 상승기의 양성 되먹임이 약해집니다.</p>
+</div>
+
+<h3 id="i-2">I-2. 불응기 (Refractory Period)</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 활동전압 직후의 세포</span>
+  <p>활동전압이 한 번 지나간 자리는 잠시 <b>평소와 다른 상태</b>입니다.
+  직후에는 아무리 센 자극을 주어도 두 번째 활동전압이 나지 않고
+  (<b>절대불응기, absolute refractory period</b>), 조금 지나면 <b>평소보다 센</b>
+  자극에만 반응하며 그 파형도 작습니다 (<b>상대불응기, relative refractory period</b>).
+  시간이 더 지나면 원래대로 돌아옵니다.</p>
+  <p>이유도 I-1 과 같은 두 게이트입니다. 활동전압 동안 <b>h 는 거의 0 까지 내려가고
+  n 은 크게 올라갑니다.</b> 둘 다 느리게 회복되므로</p>
+  <ul style="margin-top:2px">
+    <li><b>h 가 아직 0 에 가까운 동안</b> — 열 수 있는 Na 채널이 없어
+        무슨 자극을 주어도 불가능 → 절대불응기</li>
+    <li><b>h 가 일부 회복되고 n 이 아직 높은 동안</b> — Na 전류는 작고
+        이를 상쇄할 K 전류는 크므로 더 센 자극이 필요 → 상대불응기</li>
+  </ul>
+  <p>측정법은 <b>짝자극(paired pulse)</b> 입니다. 같은 세기의 자극 두 번을
+  <b>간격을 점점 늘려 가며</b> 주고, 두 번째 자극이 언제부터 활동전압을 만드는지,
+  언제부터 정상 크기를 회복하는지 봅니다.</p>
+  <p><b>왜 중요한가.</b> 불응기는 (1) 세포가 낼 수 있는 <b>최대 발화빈도</b>를 정하고,
+  (2) 활동전압이 지나온 쪽으로 되돌아가지 못하게 해 <b>일방향 전도</b>를 보장하며,
+  (3) 심근에서는 긴 불응기가 강축(tetanus)을 막고 재입성 부정맥을 억제합니다.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>I-2. 불응기 (RefractoryPeriod)</b></div>
+  <dl>
+    <dt>모드</dt><dd>전류고정 (AP)</dd>
+    <dt>자극</dt><dd>같은 세기의 자극 <b>두 번</b>(paired pulse), 간격을 늘려가며 15 에피소드</dd>
+    <dt>채널</dt><dd>INa(HH) = 2, IKdr(HH) = 2, GirK = 10, INSC = 3</dd>
+  </dl>
+</div>
+<p>이 실험은 <a href="#protocol">0-3</a> 의 다섯 구간을 모두 씁니다.
+한 에피소드의 자극은 다음과 같습니다.</p>
+<table>
+  <tr><th>구간</th><th class="n">값</th><th>역할</th></tr>
+  <tr><td>유지 (Holding)</td><td class="n">0 nA · 10 ms</td><td>기준 상태</td></tr>
+  <tr><td>펄스 1</td><td class="n">+0.6 nA · 3 ms</td><td><b>첫 번째 자극</b></td></tr>
+  <tr><td>펄스 2</td><td class="n">0 nA · 5 ms 부터</td>
+      <td><b>두 자극 사이의 간격</b> — 길이만 쓰고 세기는 0</td></tr>
+  <tr><td>펄스 3</td><td class="n">+0.6 nA · 3 ms</td><td><b>두 번째 자극</b></td></tr>
+  <tr><td>복귀 (Return)</td><td class="n">0 nA · 50 ms</td><td>회복</td></tr>
+</table>
+<p><b>펄스 2 시간 증분</b>이 <b>4 ms</b> 이고 15 에피소드이므로, 두 자극의 간격은
+<b>5, 9, 13, … , 61 ms</b> 로 늘어납니다. 펄스 미리보기에서 첫 에피소드(실선)와
+마지막 에피소드(점선)를 비교해 확인하세요.</p>
+
+<h4 class="q">1) 상대적 · 절대적 불응기는 첫 번째 활동전압의 피크로부터 어느 구간인가?</h4>
+<ol class="steps">
+  <li><b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b>.</li>
+  <li><b>두 번째 활동전압이 전혀 나지 않는 마지막 에피소드</b> → 절대불응기의 끝.</li>
+  <li><b>두 번째 활동전압의 <code>Vm max</code> 가 첫 번째 수준으로 회복되는 에피소드</b>
+      → 상대불응기의 끝.</li>
+  <li>막전위 그래프에서 <b>첫 활동전압의 정점</b>에 A 를, <b>그 에피소드의 두 번째 자극
+      시점</b>에 B 를 찍으면 Δt 가 곧 "첫 피크로부터의 시간" 입니다.</li>
+</ol>
+<div class="box tip">
+  <span class="t">왜 그런지 보려면</span>
+  <p>게이트 표시를 켜고 <b>h</b>(불활성화 게이트)와 <b>n</b> 을 보세요.
+  첫 활동전압 직후에는 h 가 거의 0 이라 Na 채널을 열 방법이 없고(절대불응기),
+  h 가 회복되는 동안에도 n 이 아직 높아 더 큰 자극이 필요합니다(상대불응기).</p>
+</div>
+
+
+<h2 id="part2">II. 전압고정 (Voltage Clamp) 실험</h2>
+<p>이 실험에서는 <b>전압고정법으로 얻은 자료만으로 활동전압을 재구성</b>하는,
+Hodgkin 과 Huxley 가 했던 분석을 따라가 봅니다. 순서는 다음과 같습니다.</p>
+<div class="eq">
+INa 의 m<sub>∞</sub>, h<sub>∞</sub> (II-1 · II-2) &nbsp;+&nbsp;
+IK 의 n<sub>∞</sub>, τ<sub>n</sub> (II-3 · II-4)
+&nbsp;→&nbsp; α · β (II-5) &nbsp;→&nbsp; 활동전압 (II-6)
+</div>
+<p>II-1 ~ II-3 은 <b class="ui">전압고정 (VC)</b> 모드이며, 채널 배율은 모두
+<code>small</code> 설정(INa 0.8, IKdr 1.5)을 씁니다.</p>
+
+<div class="box why">
+  <span class="t">왜 전압을 고정하는가</span>
+  <p>I 장에서 본 활동전압은 <b>양성 되먹임</b>의 산물입니다 — 막전위가 전류를 바꾸고,
+  그 전류가 다시 막전위를 바꿉니다. 이렇게 서로 물고 물리는 동안에는
+  <b>어느 전류가 얼마나 흐르는지</b>를 떼어내 볼 수 없습니다. 막전위가 1 ms 사이에
+  100 mV 나 움직이는데, "−20 mV 에서 Na 전도도가 얼마인가" 를 물을 수조차 없습니다.</p>
+  <p><b>전압고정법(voltage clamp)</b> 은 그 고리를 끊습니다. 막전위를 실험자가 정한
+  값에 <b>강제로 붙들어 두고</b>, 그 상태를 유지하는 데 필요한 전류를 측정합니다.
+  그 전류가 곧 <b>그 막전위에서 막을 가로질러 흐르는 이온전류</b>입니다. 그러면</p>
+  <ul style="margin-top:2px">
+    <li>막전위가 <b>상수</b>이므로 구동력 (V − E) 도 상수 → 전류의 시간 변화는
+        <b>오직 게이트의 변화</b>입니다.</li>
+    <li>막전위를 한 값씩 바꿔 가며 반복하면 게이트의 <b>전압 의존성</b>을
+        한 점씩 찍어낼 수 있습니다.</li>
+  </ul>
+  <p>이것이 II-1 ~ II-3 에서 하는 일입니다. 계단 전압을 걸고 전류를 기록해
+  <b>정상상태의 열린 정도</b>(m<sub>∞</sub>, h<sub>∞</sub>, n<sub>∞</sub>)와
+  <b>얼마나 빨리 열리는지</b>(τ)를 따로따로 구합니다.
+  프로그램에서는 머리띠의 <b class="ui">전압고정 (VC)</b> 를 고르면 되고,
+  그때 펄스 패널의 값은 nA 가 아니라 <b>mV</b> 가 됩니다.</p>
+  <p>Na 와 K 를 분리하는 문제도 있는데, 이 실습에서는 <b>표시할 전류</b> 에서
+  한쪽만 켜서 해결합니다. 실제 실험에서는 이온 치환이나 약물(TTX, TEA)을 썼습니다.</p>
+</div>
+
+<h3 id="ii-1">II-1. INa 의 activation curve</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — m 의 전압 의존성</span>
+  <p>Na 채널에는 문이 둘 있습니다. 탈분극에 <b>열리는</b> 활성화 문 <b>m</b> 과,
+  탈분극에 <b>닫히는</b> 불활성화 문 <b>h</b> 입니다. 둘 다 전압에 따라 변하지만
+  m 이 훨씬 빠르므로, 계단 전압을 걸었을 때 <b>전류가 정점에 이르는 순간</b>은
+  "m 은 거의 다 열렸고 h 는 아직 많이 닫히지 않은" 시점입니다. 그래서
+  <b>정점 전류</b>를 읽으면 그 전압에서의 m 을 볼 수 있습니다.</p>
+  <p>여기서 주의할 것이 하나 있습니다. 전류의 크기는 <b>열린 정도 × 구동력</b>
+  두 가지로 정해지는데, 우리가 알고 싶은 것은 앞의 것뿐입니다. 그래서 I–V 곡선을
+  그대로 쓰지 않고 <b>구동력으로 나눈</b> 전도도
+  <code>G = I/(V − E<sub>Na</sub>)</code> 를 봅니다.</p>
+  <p>이 둘의 차이가 I–V 곡선에 그대로 드러납니다. 탈분극을 키우면 처음에는
+  m 이 열려 전류가 커지다가, 어느 지점을 지나면 막전위가 E<sub>Na</sub> 에 가까워져
+  <b>구동력이 줄기 때문에</b> 전류가 다시 작아집니다. 그래서 I–V 곡선은
+  <b>U 자로 내려갔다 올라오고</b>, E<sub>Na</sub> 에서 0 을 지납니다.
+  반면 G–V 곡선은 끝까지 올라가 <b>S 자로 포화</b>합니다. 두 곡선을 나란히 놓고
+  그 차이를 설명할 수 있어야 합니다.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>II-1. INa activation — 전압고정</b></div>
+  <dl>
+    <dt>유지전위</dt><dd>−110 mV (2 ms)</dd>
+    <dt>지령전위</dt><dd><b>−80 mV 에서 10 mV 씩 17 계단 → +80 mV</b>, 각 8 ms</dd>
+    <dt>표시</dt><dd>전류 −20 ~ 8 nA, INa(HH) 만</dd>
+  </dl>
+</div>
+<h4>1) Na 전류의 I–V curve 그리기</h4>
+<ol class="steps">
+  <li><b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b>.</li>
+  <li><code>step (mV)</code> 를 x 축, <code>INa min (nA)</code> 를 y 축으로 그립니다.
+      <b>Na 전류는 내향(음수)이므로 <code>min</code> 열이 정점</b>입니다.</li>
+  <li><b class="ui">CSV 저장</b> → 엑셀에서 산점도.</li>
+</ol>
+<p>전류가 어느 전위에서 가장 커지고, 어느 전위에서 0 이 되는지(= 반전전위) 확인하세요.</p>
+
+<h4>2) activation curve 그리기</h4>
+<p>y 축을 G<sub>Na</sub>/G<sub>Na,max</sub>, x 축을 막전압으로 하여 그립니다.</p>
+<div class="eq">G<sub>Na</sub> = (전류의 정점) / (Na<sup>+</sup> 에 대한 구동력)
+ = I<sub>peak</sub> / (V<sub>m</sub> − E<sub>Na</sub>)</div>
+<div class="box tip">
+  <span class="t">E<sub>Na</sub> 는 어디서?</span>
+  <p>오른쪽 <b>이온</b> 탭에 세포 안팎 [Na<sup>+</sup>] 가, <b>실험조건</b> 탭에 온도가
+  있습니다. 이 값으로 Nernst 식을 쓰세요. 화면 맨 아래 띠에도 현재 세포내 이온농도와
+  막전위가 표시됩니다.</p>
+</div>
+<p class="q">얻은 곡선이 m<sub>∞</sub>³ 의 모양(가파른 S자)인 이유를 설명하시오.</p>
+
+<h3 id="ii-2">II-2. INa 의 inactivation curve</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — h 를 따로 떼어 보기</span>
+  <p>이번에는 같은 Na 채널의 <b>다른 문</b>, 불활성화 문 <b>h</b> 를 봅니다.
+  문제가 하나 있습니다. 전압을 한 번만 걸면 m 과 h 가 <b>동시에</b> 움직여
+  전류만 봐서는 둘을 구분할 수 없습니다.</p>
+  <p>해법이 <b>두 단계 펄스(전조건화 + 시험펄스)</b> 입니다.</p>
+  <ol style="margin-top:2px">
+    <li><b>전조건화 펄스</b> — 어떤 전압에 충분히 오래 머무르게 해서
+        <b>h 가 그 전압의 정상상태 값에 도달</b>하게 합니다. 에피소드마다 이 전압만
+        바꿉니다. (여기서는 30 ms 동안)</li>
+    <li><b>시험펄스</b> — 그다음 <b>모든 에피소드에서 똑같은 전압</b>(0 mV)으로
+        옮깁니다. 전압이 같으므로 m 이 열리는 정도도, 구동력도 모두 같습니다.
+        따라서 <b>시험펄스에서 나오는 전류의 차이는 오직 h 의 차이</b>입니다.</li>
+  </ol>
+  <p>이렇게 한 변수만 남기고 나머지를 같게 만드는 것이 전압고정 실험 설계의
+  핵심입니다. 얻은 곡선 h<sub>∞</sub>(V) 는 <b>탈분극될수록 내려가는</b> S 자이며,
+  II-1 의 m<sub>∞</sub>(V) 와 <b>방향이 반대</b>입니다.</p>
+  <p>두 곡선이 겹치는 좁은 전압 구간이 생기는데, 거기서는 m 과 h 가 <b>둘 다
+  0 이 아니어서</b> Na 채널 일부가 정상상태에서도 계속 열려 있습니다.
+  이때 흐르는 작은 지속성 전류가 <b>window current</b> 이고, 휴지막전위를 끌어올리고
+  자발흥분·부정맥에 관여하는 전류입니다. 4) 에서 직접 확인합니다.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>II-2. INa inactivation — 전압고정</b></div>
+  <dl>
+    <dt>유지전위</dt><dd>−80 mV</dd>
+    <dt>프로토콜</dt><dd><b>전조건화 펄스</b>(−110 mV 에서 10 mV 씩 10 계단 → −20 mV)
+        뒤에 <b>항상 같은 시험펄스</b>(0 mV)</dd>
+    <dt>표시</dt><dd>INa(HH) 만</dd>
+  </dl>
+</div>
+<p>시간 구성을 먼저 확인하세요(펄스 미리보기).</p>
+<table>
+  <tr><th style="width:120px">시간</th><th>내용</th></tr>
+  <tr><td class="n">0 – 10 ms</td><td>유지전위 −80 mV</td></tr>
+  <tr><td class="n">10 – 40 ms</td><td><b>전조건화 펄스</b> — 에피소드마다 −110 → −20 mV</td></tr>
+  <tr><td class="n">40 – 50 ms</td><td><b>시험펄스</b> — 모든 에피소드에서 0 mV 로 동일</td></tr>
+  <tr><td class="n">50 – 70 ms</td><td>복귀 −80 mV</td></tr>
+</table>
+
+<h4>1) 실행</h4>
+<h4>2) 시험펄스(40 – 50 ms)에서 Na 전류의 정점 읽기</h4>
+<ol class="steps">
+  <li>전류 그래프에서 <b>40 ms 와 50 ms 에 A·B 를 찍습니다.</b></li>
+  <li><b class="ui">A·B 구간만</b> 체크 — 측정표가 그 구간만으로 다시 만들어집니다.</li>
+  <li><code>INa min (nA)</code> 열이 각 전조건화 전위에서의 시험펄스 정점입니다.</li>
+</ol>
+<p class="q">왜 시험펄스에서 읽는가?
+<span style="font-weight:400">— h 는 전조건화 펄스 동안 그 전위의 정상상태 값에 도달합니다.
+시험펄스는 전위를 항상 같은 0 mV 로 만들어 m 의 조건과 구동력을 동일하게 하므로,
+시험펄스 정점의 차이는 <b>오직 h 의 차이</b>에서 옵니다.</span></p>
+
+<h4>3) inactivation curve 그리기</h4>
+<p>전조건화 펄스의 V<sub>m</sub> 을 x 축으로 하고, 2)에서 읽은 값을 <b>최대값으로
+normalize</b> 하여 y 축에 표시합니다.</p>
+<p class="q">왜 driving force 로 나누어 주지 않는가?
+<span style="font-weight:400">— 시험펄스 전위가 모든 에피소드에서 같으므로 구동력도 같습니다.
+나누어도 상수로 나누는 셈이라 normalize 후에는 차이가 없습니다.</span></p>
+<div class="box">
+  <p>inactivation curve 는 정상상태에서 불활성화 게이트 <b>h</b> 가 열려 있는 정도의
+  전압 의존성이므로 <b>(−) 값이 나올 수 없습니다.</b> 전류의 부호(내향 = 음수)를
+  그대로 쓰지 말고 절대값으로 정규화하세요.</p>
+</div>
+
+<h4>4) window current 가 최대가 되는 막전압은?</h4>
+<p><b>window current</b> 란 정상상태에서도 계속 열려 있는 Na 채널이 흘리는 전류입니다.
+m<sub>∞</sub>³ 와 h<sub>∞</sub> 가 <b>둘 다 0 이 아닌</b> 전압 구간에서만 생깁니다.</p>
+<ol class="steps">
+  <li>예측해 보세요 — II-1 의 activation curve(m<sub>∞</sub>³)와 3)의 inactivation
+      curve(h<sub>∞</sub>)를 같은 그래프에 겹쳐 그리면, 두 곡선이 겹치는 구간이 window 입니다.</li>
+  <li>확인 — 전류 Y 범위를 <code>−1 ~ 1</code> nA 로 좁히고 <b class="ui">적용</b>.</li>
+  <li><b>20 – 25 ms</b>(전조건화 펄스 후반, 정상상태에 도달한 구간)에 A·B 를 찍고
+      측정표를 봅니다. 그 작은 지속성 내향전류가 window current 입니다.</li>
+</ol>
+
+<h3 id="ii-3">II-3. IK 의 activation curve</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 불활성화가 없는 전류</span>
+  <p>K 전류(지연정류, delayed rectifier)는 Na 전류보다 다루기 쉽습니다.
+  문이 <b>하나뿐</b>이기 때문입니다 — 불활성화가 없어 n 만 보면 됩니다.
+  그래서 계단 전압을 걸면 전류가 <b>서서히 올라가 정상상태에 이른 뒤 그대로
+  머무릅니다.</b> Na 전류처럼 솟았다 꺼지지 않습니다.</p>
+  <p>덕분에 두 가지를 한 번의 실험에서 얻습니다.</p>
+  <ul style="margin-top:2px">
+    <li><b>정상상태 값</b>(전류가 다다른 높이) → n<sub>∞</sub> — 이번 II-3</li>
+    <li><b>거기까지 가는 속도</b>(올라가는 모양) → τ — 다음 <a href="#ii-4">II-4</a></li>
+  </ul>
+  <p>이름에 붙은 <b>"delayed"</b> 가 바로 이 느림을 가리킵니다. Na 전류보다 늦게
+  올라오기 때문에 활동전압에서 <b>상승기는 Na 가, 재분극은 K 가</b> 맡게 됩니다.</p>
+  <p>한 가지 더. HH 는 K 전류가 <b>n 이 아니라 n⁴ 에 비례</b>한다고 보았습니다.
+  채널이 열리려면 <b>독립적인 네 개의 입자가 모두</b> 제자리에 있어야 한다는 뜻이고,
+  이 때문에 전류의 상승 곡선이 단순 지수가 아니라 <b>처음에 완만했다가 가팔라지는
+  S 자(sigmoid)</b> 가 됩니다. 그래서 전도도에서 n<sub>∞</sub> 를 구할 때
+  <b>네제곱근</b>을 취하고, τ 를 읽을 때도 63 % 가 아닌
+  <b>56 %</b> 지점을 쓰게 됩니다(<a href="#ii-4">II-4</a>).</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>II-3. IK activation — 전압고정</b></div>
+  <dl>
+    <dt>유지전위</dt><dd>−80 mV (2 ms)</dd>
+    <dt>지령전위</dt><dd><b>−60 mV 에서 10 mV 씩 11 계단 → +40 mV</b>, 각 20 ms</dd>
+    <dt>표시</dt><dd>전류 −5 ~ 55 nA, IKdr(HH) 만</dd>
+  </dl>
+</div>
+<h4>1) K 전류의 I–V curve 그리기</h4>
+<p>측정표의 <code>step (mV)</code> 와 <code>IKdr max (nA)</code> —
+<b>K 전류는 외향(양수)이므로 <code>max</code> 열</b>이 정점입니다.
+Na 전류와 달리 <b>불활성화가 없어</b> 전류가 정상상태까지 올라가 그대로 머무릅니다.</p>
+
+<h4>2) activation curve 그리기</h4>
+<div class="eq">G<sub>K</sub> = (전류의 정점) / (K<sup>+</sup> 에 대한 emf)
+ = I<sub>ss</sub> / (V<sub>m</sub> − E<sub>K</sub>)</div>
+<p>y 축을 G<sub>K</sub>/G<sub>K,max</sub>, x 축을 막전압으로 그립니다.</p>
+<div class="box tip">
+  <span class="t">직접 읽은 전도도와 비교</span>
+  <p><b class="ui">HH 모델 전용 계산</b> 과 <b class="ui">gNa · gK (전도도) 표시</b> 를
+  켜고 다시 실행하면 모델이 계산한 g<sub>K</sub> 가 그대로 그려집니다.
+  위에서 구한 값과 비교해 보세요. 비교가 끝나면
+  <b class="ui">HH 모델 전용 계산</b> 은 다시 <b>해제</b>하고 나머지 실험을 진행합니다.</p>
+</div>
+<p class="q">얻은 곡선을 n<sub>∞</sub>⁴ 로 보고 n<sub>∞</sub> 를 구하시오 —
+<code>n<sub>∞</sub> = (G/G<sub>max</sub>)<sup>1/4</sup></code>. II-5 에서 씁니다.</p>
+
+<h3 id="ii-4">II-4. IK 의 activation kinetics (τ)</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 시간 축의 절반</span>
+  <p>II-3 에서 구한 n<sub>∞</sub>(V) 는 게이트가 <b>결국 어디에 도달하는가</b>만
+  알려 줍니다. 활동전압의 모양을 결정하는 나머지 절반은
+  <b>거기까지 가는 데 얼마나 걸리는가</b> 입니다. 그 속도를 하나의 수로 나타낸 것이
+  <b>시간상수 τ</b> 입니다.</p>
+  <p>τ 가 중요한 이유는, <b>m 은 빠르고 h · n 은 느리다</b> 는 시간상수의 차이가
+  활동전압의 거의 모든 성질을 만들어내기 때문입니다 — 상승이 가파른 것,
+  재분극이 뒤따라오는 것, 불응기(<a href="#i-2">I-2</a>), 순응(<a href="#iii-2">III-2</a>),
+  anodal break(<a href="#iii-3">III-3</a>) 가 모두 여기서 나옵니다.
+  n<sub>∞</sub> 와 τ 가 모이면 <a href="#ii-5">II-5</a> 에서 α 와 β 가 나오고,
+  <a href="#ii-6">II-6</a> 에서 활동전압을 되살릴 수 있습니다.</p>
+  <p>측정 자체는 간단합니다 — 전류가 최종값의 일정 비율에 닿는 시간을 재면 됩니다.
+  다만 <b>그 비율이 왜 63 % 가 아니라 56 % 이고, 왜 반으로 나누는지</b>가
+  이 실습의 요점입니다.</p>
+</div>
+
+<p>II-3 과 같은 조건에서, 전류가 full activation 값의 50 %(더 정확히는 <b>56 %</b>)에
+도달하는 시간의 <b>반</b>을 읽어 x 축 = 막전압, y 축 = τ 로 그립니다.</p>
+
+<h4 class="q">왜 56 % 도달시간의 반인가?</h4>
+<p>n 은 <b>n(t) = n<sub>∞</sub>(1 − e<sup>−t/τ</sup>)</b> 로 커지지만,
+우리가 보는 전류는 <b>I ∝ n⁴</b> 입니다. 전류가 full 값의 56 % 가 되는 순간은</p>
+<div class="eq">
+(1 − e<sup>−t/τ</sup>)⁴ = 0.56 &nbsp;→&nbsp; 1 − e<sup>−t/τ</sup> = 0.56<sup>1/4</sup> = 0.865
+&nbsp;→&nbsp; e<sup>−t/τ</sup> = 0.135 &nbsp;→&nbsp; <b>t = 2τ</b></div>
+<p>즉 56 % 지점이 정확히 <b>두 시간상수</b>에 해당하므로 그 시간을 반으로 나눕니다.
+(n 자체라면 63 % 가 1τ 이지만, 측정하는 것은 n⁴ 인 전류입니다.)</p>
+
+<h4>먼저 손으로 한 번</h4>
+<ol class="steps">
+  <li>실습 항목 <b>II-3</b> 그대로 <b class="ui">▶ 실행</b>.</li>
+  <li>한 지령전위의 곡선에서 <b>펄스가 끝나는 시점의 전류</b>를 full 값으로 읽습니다(커서).</li>
+  <li>그 값의 <b>56 %</b> 가 되는 시각을 커서로 찾습니다.</li>
+  <li><b>펄스가 시작되는 시각</b>(유지 시간 2 ms 가 지난 뒤)에 A 를, 3)의 시각에 B 를 찍어
+      Δt 를 읽고 <b>반으로 나누면 τ</b> 입니다.</li>
+</ol>
+<div class="box warn">
+  <span class="t">주의 두 가지</span>
+  <ul>
+    <li>시간은 <b>펄스가 시작되는 순간부터</b> 재야 하므로 <b>유지 시간(2 ms)이 포함되지
+        않도록</b> 주의하세요.</li>
+    <li><b>−60 mV 같은 약한 탈분극</b>에서는 20 ms 안에 전류가 정상상태까지 가지 않습니다.
+        펄스 탭에서 <b class="ui">펄스 2 지속시간</b>을 충분히 늘린 뒤 측정해야
+        full 값을 바르게 잡습니다.</li>
+  </ul>
+</div>
+
+<h4>자동 측정으로 전 전압 범위 채우기</h4>
+<ol class="steps">
+  <li>실습 항목이 <b>II-3</b> 인 상태에서 (지령전위 목록을 현재 자극 프로토콜에서 가져옵니다)</li>
+  <li><b>IK 활성화 시간상수 τ</b> 카드의 <b class="ui">자동 측정</b> 을 누릅니다.</li>
+  <li>지령전위마다 전압고정 에피소드를 한 번씩 돌려
+      <code>56 % 도달</code> · <code>τ 측정</code> · <code>τ 이론</code> ·
+      <code>n∞</code> · <code>α_n</code> · <code>β_n</code> 표와 그래프가 나옵니다.</li>
+</ol>
+<p>전류가 정상상태에 이르지 못한 전위는 <b>펄스를 두 배씩 자동으로 늘려</b> 다시
+측정하므로, 위 주의사항 두 번째가 자동으로 처리됩니다. 카드 안의
+<b>▸ 어떻게 재나요?</b> 를 펼치면 전체 절차가 적혀 있습니다.</p>
+<div class="box">
+  <span class="t">측정값과 이론값의 차이를 설명하시오</span>
+  <p>표의 <code>τ 측정</code> 이 <code>τ 이론</code> 보다 조금 작게 나옵니다.
+  위 유도는 <b>n 이 0 에서 출발</b>한다고 가정하지만, 실제로는 유지전위에서도
+  n₀ ≈ 0.13 으로 이미 열려 있어 56 % 지점이 2τ 보다 조금 일찍 옵니다.
+  전류로 보면 n₀⁴/n<sub>∞</sub>⁴ 가 1 % 도 안 돼 "0 에서 시작" 처럼 보이지만,
+  τ 를 결정하는 것은 n⁴ 이 아니라 <b>n</b> 입니다. 이 차이는 탈분극이 작을수록
+  (n<sub>∞</sub> 가 작을수록) 커집니다. 보고서에 이 점을 논의하세요.</p>
+  <p><code>n∞ 측정</code> 과 <code>n∞ 이론</code> 도 벌어지는데, 이것은 <b>다른
+  이유</b>입니다 — 전도도를 <code>G = I/(V−E<sub>K</sub>)</code> 로 구하는 것은
+  <b>옴형 구동력을 가정</b>한 것인데 이 모델의 IK 는 정전장(GHK) 구동력을 쓰기
+  때문입니다. 자세한 설명과 두 구동력의 비교는
+  <a href="#drive">부록 A — 구동력</a> 을 보세요.</p>
+</div>
+
+<h3 id="ii-5">II-5. α<sub>n</sub> 과 β<sub>n</sub> 구하기</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 모델이 실제로 필요로 하는 두 수</span>
+  <p>지금까지 구한 n<sub>∞</sub> 와 τ 는 <b>측정하기 쉬운</b> 양이지만,
+  모델이 직접 쓰는 양은 아닙니다. 모델의 식은</p>
+  <div class="eq" style="margin:6px 0">dn/dt = α(1−n) − β·n</div>
+  <p>이고, 여기 들어가는 것은 <b>α 와 β</b> 입니다. 둘의 뜻은 분명합니다 —
+  <b>α 는 닫힌 문이 열리는 속도상수</b>, <b>β 는 열린 문이 닫히는 속도상수</b>
+  (단위 ms⁻¹)이며, 둘 다 <b>전압의 함수</b>입니다. 막전압이 게이트에 영향을 주는
+  통로는 오직 이 둘뿐입니다.</p>
+  <p>n<sub>∞</sub> 와 τ 는 α·β 를 다르게 묶어 본 것일 뿐입니다 —
+  <b>n<sub>∞</sub> 는 둘의 비(어디로 가는가)</b>,
+  <b>τ 는 둘의 합의 역수(얼마나 빨리 가는가)</b>. 그러므로 두 측정값을 알면
+  α 와 β 를 <b>되돌려 풀 수 있습니다.</b> 이것이 II-5 이고, 이렇게 얻은 α·β 가
+  <a href="#ii-6">II-6</a> 에서 활동전압을 재구성하는 재료가 됩니다.</p>
+  <p>참고로 HH 가 이 두 함수에 <b>물리적 의미를 주장한 것은 아닙니다.</b>
+  측정한 점들에 맞춘 경험식일 뿐이고, 식의 모양이 맞았다기보다
+  <b>이 틀로 활동전압이 그대로 재현된다</b>는 것이 논문의 결론이었습니다.</p>
+</div>
+
+<p class="q">II-3 과 II-4 의 결과로부터 α<sub>n</sub> 과 β<sub>n</sub> 을 구하는 방법을
+설명하고, α<sub>n</sub> · β<sub>n</sub> vs. 막전압 그래프를 그리시오.</p>
+<p>유도는 두 줄입니다.</p>
+<ol>
+  <li><b>II-3</b> 에서 <code>n<sub>∞</sub> = (G/G<sub>max</sub>)<sup>1/4</sup></code>,
+      <b>II-4</b> 에서 <code>τ</code>.</li>
+  <li>정상상태 조건 <code>α(1−n<sub>∞</sub>) = β·n<sub>∞</sub></code> 와
+      <code>τ = 1/(α+β)</code> 를 연립하면</li>
+</ol>
+<div class="eq">α<sub>n</sub> = n<sub>∞</sub> / τ &nbsp;&nbsp;&nbsp;&nbsp;
+β<sub>n</sub> = (1 − n<sub>∞</sub>) / τ</div>
+<p>II-4 의 자동 측정 결과 표에 <code>n∞</code> · <code>α_n</code> · <code>β_n</code> 열이
+이미 들어 있습니다. 카드 머리의 드롭다운을 <b class="ui">그래프 : α_n · β_n</b> 으로
+바꾸면 막전압에 대한 α·β 그래프가 나오고, <b class="ui">CSV 저장</b> 으로
+내보낼 수 있습니다.</p>
+<p class="q">α<sub>n</sub> 은 탈분극에서 커지고 β<sub>n</sub> 은 과분극에서 커집니다.
+각각이 물리적으로 무엇을 뜻하는지 설명하시오.</p>
+
+<h3 id="ii-6">II-6. 활동전압 재구성</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 실습 전체가 향하던 곳</span>
+  <p>여기까지 한 일을 돌아봅시다. 전압고정으로 막전위를 붙들어 두고, 그 상태에서
+  게이트가 <b>어디까지 열리는지</b>와 <b>얼마나 빨리 열리는지</b>를 전압마다
+  하나씩 쟀습니다. 모두 <b>막전위가 움직이지 않는</b> 인공적인 조건에서 얻은
+  자료입니다.</p>
+  <p>그런데 실제 활동전압은 막전위가 1 ms 사이에 100 mV 씩 움직이는, 정반대의
+  상황입니다. <b>정지 상태에서 잰 값들이 그 격렬한 과정을 설명할 수 있을까요?</b>
+  이것이 1952년 Hodgkin 과 Huxley 가 던진 질문이고, 답은 "할 수 있다" 였습니다.
+  그들은 전압고정 자료만으로 축삭의 활동전압을 <b>계산해서</b> 그려냈고,
+  그 파형은 실제 기록과 거의 일치했습니다. 전도속도까지 맞았습니다.</p>
+  <p>논리는 이렇습니다. 게이트는 <b>지금 이 순간의 막전위</b>에만 반응합니다
+  (α·β 가 V 의 함수). 그러니 막전위가 아무리 빨리 변해도, <b>아주 짧은 시간
+  간격으로 끊어서</b> 그 순간의 V 로 α·β 를 구하고 → 게이트를 조금 움직이고 →
+  전류를 구하고 → 막전위를 조금 바꾸고, 를 반복하면 됩니다. 전압고정에서 잰
+  α·β 가 그대로 쓰일 수 있는 이유입니다.</p>
+  <p>이 항목에서는 그 과정을 직접 돌려 봅니다. <b>측정값에서 출발해 활동전압까지
+  닿는 것</b>이 이 실습 전체의 목적지입니다.</p>
+</div>
+
+<p class="q">m, n, h 에 대하여 막전압에 따른 α, β 의 변화를 알아냈다면, 이를 기반으로
+어떻게 활동전압을 재구성할 수 있는지 설명하시오.</p>
+<p>필요한 것은 세 식뿐입니다.</p>
+<div class="eq" style="text-align:left;line-height:2.1">
+① &nbsp; dm/dt = α<sub>m</sub>(V)(1−m) − β<sub>m</sub>(V)·m &nbsp;&nbsp;(h, n 도 같은 꼴)<br>
+② &nbsp; I<sub>Na</sub> = ḡ<sub>Na</sub>·m³h·(V − E<sub>Na</sub>) ,&nbsp;&nbsp;
+         I<sub>K</sub> = ḡ<sub>K</sub>·n⁴·(V − E<sub>K</sub>)<br>
+③ &nbsp; C·dV/dt = −(I<sub>Na</sub> + I<sub>K</sub> + I<sub>leak</sub>) + I<sub>stim</sub>
+</div>
+<p>II-1 ~ II-5 에서 얻는 것이 바로 <b>①의 α·β 와 ②의 ḡ</b> 입니다. 즉
+<b>전압고정 실험에서 측정한 값만으로 활동전압을 그려낼 수 있다</b>는 것이 H-H 의 결론입니다.</p>
+
+<h4>직접 확인하기</h4>
+<p><b>활동전압 재구성</b> 카드에서 <b class="ui">재구성 실행</b> 을 누르면, 위 세 식만으로
+처음부터 적분한 결과가 나옵니다(시뮬레이션 엔진을 전혀 쓰지 않습니다).
+자극 세기·시작·폭·총 시간을 바꿔 볼 수 있습니다.</p>
+<ul>
+  <li><b>파형</b> — 재구성 결과(빨강)와 모델이 계산한 활동전압(회색 점선)이 겹칩니다.
+      <b>두 곡선이 포개진다면 ①~③ 이외에 숨은 요소가 없다는 뜻</b>입니다.</li>
+  <li><b>기전 표</b> — 자극 직전 / 최대 dV/dt / 정점 / 최대 −dV/dt / AHP 최저 시점의
+      V · m · h · n · m³h · n⁴ · I<sub>Na</sub> · I<sub>K</sub> 가 나옵니다.</li>
+  <li><b>게이트·전도도 그래프</b> — m·h·n(실선)과 g<sub>Na</sub>·g<sub>K</sub>(점선, 오른쪽 축).
+      g<sub>Na</sub> 가 먼저 솟았다 꺼지고 g<sub>K</sub> 가 뒤늦게 올라오는 고전적인
+      그림이 나옵니다.</li>
+  <li><b class="ui">n 의 α·β 를 II-4 측정값으로</b> — HH 식 대신 <b>II-4 에서 직접 잰</b>
+      α<sub>n</sub>·β<sub>n</sub> 으로 적분합니다 (m·h 는 HH 식 — 이 실습의 전압고정
+      프로토콜로는 τ<sub>m</sub>·τ<sub>h</sub> 까지는 구하지 않습니다).</li>
+</ul>
+<p class="q">기전 표를 위에서 아래로 읽으며 활동전압의 각 시기를 설명하시오.
+특히 <b>m 은 빠르고 h · n 은 느리다</b>는 시간상수의 차이가 파형을 어떻게 만드는지
+서술하시오.</p>
+<p class="q">측정한 α<sub>n</sub>·β<sub>n</sub> 으로 재구성하면 활동전압은 그대로 나오지만
+정점이 높아지고 재분극이 느려집니다. 그 이유를 II-4 에서 논의한 측정 방법의 가정과
+연결하여 설명하시오.</p>
+
+
+<h2 id="part3">III. 활동전압 실험 (2)</h2>
+<p>모두 <b class="ui">전류고정 (AP)</b> 모드입니다.</p>
+
+<h3 id="iii-1">III-1. 역치전류와 strength–duration 곡선</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 세기와 시간의 맞바꿈</span>
+  <p>"역치전류" 라는 말에는 숨은 조건이 하나 있습니다. <b>얼마나 오래 주었느냐</b> 입니다.
+  같은 세포라도 자극을 <b>짧게</b> 주면 더 <b>세게</b> 주어야 하고,
+  <b>길게</b> 주면 더 <b>약하게</b> 주어도 발화합니다. 세기와 시간은 서로 맞바꿀 수 있고,
+  그 맞바꿈의 관계를 그린 것이 <b>strength–duration curve</b> 입니다.</p>
+
+  <p>왜 그럴까요? 자극전류가 하는 일은 <b>막용량(C)을 충전해 막전위를 역치까지
+  끌어올리는 것</b>입니다. 짧은 펄스는 충전할 시간이 모자라므로 큰 전류가 필요합니다.
+  펄스를 늘리면 충전이 점점 완성되어 필요한 전류가 줄지만, 충전이 거의 끝난 뒤로는
+  더 길게 주어도 소용이 없습니다. 그래서 곡선은 왼쪽에서 치솟고 오른쪽에서
+  <b>평평한 점근선</b>으로 다가갑니다.</p>
+
+  <p>이 곡선을 두 개의 수로 요약한 사람이 Lapicque (1909) 입니다.</p>
+  <dl>
+    <dt>rheobase (Ir)</dt>
+    <dd>곡선의 <b>세로축 쪽 한계</b> — 아무리 길게 주어도 이보다 약하면 발화하지 않는
+        전류. 세포가 <b>얼마나 흥분하기 쉬운가</b>를 나타냅니다.</dd>
+    <dt>chronaxie (C)</dt>
+    <dd>곡선의 <b>가로축 쪽 척도</b> — rheobase 의 <b>두 배</b>를 줄 때 필요한 최소
+        자극기간. 세포가 <b>얼마나 빨리 반응하는가</b>(시간 척도)를 나타냅니다.</dd>
+  </dl>
+
+  <p><b>왜 하필 두 배인가?</b> rheobase 자체는 점근선이라 "그 전류에서 필요한 시간" 이
+  무한대여서 쓸 수 없습니다. 두 배로 올리면 곡선의 중간쯤에서 <b>유한하고 잘 정의된</b>
+  시간이 하나 잡힙니다. 단순한 RC 막이라면 chronaxie 는 <b>막 시간상수의 약 0.69 배</b>
+  (= τ·ln 2) 가 되어, 막이 얼마나 빨리 충전되는지를 대신 알려 줍니다.</p>
+
+  <p><b>쓰임새.</b> 섬유 종류마다 chronaxie 가 다릅니다 — 굵은 유수신경은 짧고(수십 µs),
+  가는 무수신경·통각섬유와 근육은 깁니다(수 ms). 그래서 전기자극의 <b>펄스폭</b>을
+  목표 섬유의 chronaxie 에 맞추면 <b>원하는 섬유만 골라 자극</b>할 수 있습니다
+  (경피신경자극 TENS, 기능적 전기자극 FES, 심박조율기 설정 등).
+  덧붙여 <code>I = Ir(1 + C/t)</code> 에서 자극에 드는 에너지(∝ I²t)를 최소로 만드는
+  펄스폭을 계산하면 정확히 <b>t = C</b> 가 나옵니다 — 배터리로 평생 뛰어야 하는
+  심박조율기에서 chronaxie 가 중요한 이유입니다.</p>
+
+  <p><b>다만 실제 세포는 단순한 RC 막이 아닙니다.</b> 자극이 길어지면 그동안
+  h 가 내려가고 n 이 올라가 역치 자체가 조금씩 높아집니다 — <a href="#iii-2">III-2 의
+  순응</a> 입니다. 그래서 측정한 곡선은 RC 이론이 예측하는 것보다 오른쪽에서
+  더 평탄해집니다. 이 실습에서 식 맞춤보다 <b>정의대로 잰 값</b>을 앞에 두는 이유가
+  여기에 있습니다.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>III-1. 역치전류 · rheobase</b></div>
+  <dl>
+    <dt>자극</dt><dd>펄스 2 = <b>0.05 nA · 50 ms</b>, 진폭 증분 <b>0.01 nA</b>,
+        5 에피소드 → 0.05, 0.06, 0.07, 0.08, 0.09 nA</dd>
+    <dt>채널</dt><dd>INa(HH) = 3, IKdr(HH) = 2, GirK = 10, INSC = 3</dd>
+  </dl>
+</div>
+
+<h4>1) 자극기간이 50 ms 일 때 역치전류의 크기는?</h4>
+<p><b class="ui">▶ 실행</b> → <b class="ui">측정표 만들기</b>.
+초록색으로 칠해진 첫 행의 <code>pulse2 (nA)</code> 값이 역치전류입니다.
+역치전압은 막전위 그래프를 <b class="ui">A·B 확대</b> 로 상승기 직전까지 당겨
+커서로 읽으세요.</p>
+<p>AP 가 전혀 나지 않거나 첫 에피소드부터 난다면, 펄스 2 의 시작 세기와
+<b class="ui">에피소드 수</b>를 조절해 역치를 사이에 두도록 만드세요.</p>
+
+<h4>2) 자극기간을 바꾸며 strength–duration 곡선 그리기</h4>
+<p>자극기간을 <b>1, 2, 5, 10, 20, 50, 100 ms</b> 로 바꾸면서
+<b>역치 자극전류 vs. 자극기간</b>을 plot 하고, <b>rheobase current</b> 와
+<b>chronaxie</b> 를 구하시오.</p>
+<table>
+  <tr><th style="width:190px">rheobase current (Ir)</th>
+      <td>아무리 자극기간을 늘려도 활동전압이 생기지 않는 <b>최대전류</b>
+          — 곡선이 다가가는 수평 점근선</td></tr>
+  <tr><th>chronaxie (C)</th>
+      <td>rheobase current 의 <b>두 배</b>를 주었을 때 활동전압을 발생시키는
+          <b>최소 자극기간</b></td></tr>
+</table>
+<p>strength–duration 곡선은 <code>I = Ir (1 + C/t)</code> 로 fitting 할 수 있습니다.</p>
+<p>이 개념은 원래 신경섬유의 세포외자극 실험에서 나왔습니다. 여러 종류의 신경섬유가
+섞여 있는 환경에서 외부자극을 줄 때, <b>펄스자극 기간을 보고자 하는 신경섬유의
+chronaxie 에 맞추어야 자극의 specificity 를 높일 수 있습니다.</b></p>
+
+<h4>손으로 하는 방법</h4>
+<ol class="steps">
+  <li>펄스 탭에서 <b class="ui">펄스 2 지속시간</b>을 1 ms 로 바꿉니다.</li>
+  <li>역치가 에피소드 범위 안에 들어오도록 펄스 2 의 시작 세기 · 진폭 증분 ·
+      에피소드 수를 조절합니다.</li>
+  <li><b class="ui">새 세포</b> → 값 재입력 → <b class="ui">▶ 실행</b> →
+      <b class="ui">측정표 만들기</b>. 초록 첫 행이 그 자극기간의 역치전류입니다.</li>
+  <li>7 개 자극기간에 대해 반복해 (t, I) 7 점을 얻습니다.</li>
+</ol>
+
+<h4>자동 측정으로 정밀하게</h4>
+<ol class="steps">
+  <li><b>강도–지속시간 곡선 · rheobase 와 chronaxie</b> 카드의
+      <b class="ui">자동 측정</b> 을 누릅니다.</li>
+  <li><b class="ui">자극기간 (ms)</b> 칸의 기본값이 <code>1, 2, 5, 10, 20, 50, 100</code>
+      입니다. 바꿔도 됩니다.</li>
+  <li>자극기간마다 <b>전류를 반씩 좁혀가며</b> 역치를 찾고(이분법),
+      마지막에 <b>전류를 2 Ir 로 고정한 채 이번에는 시간을 좁혀</b> chronaxie 를
+      직접 측정합니다.</li>
+  <li>결과: (t, 역치 I) 표와 곡선,
+      <span style="color:#b45309">주황 수평 점선</span> = Ir,
+      <span style="color:#0f8a5f">초록 세로선</span> = C,
+      연한 회색 선 = <code>I = Ir(1+C/t)</code> 최소자승 맞춤.</li>
+</ol>
+<p>카드 안의 <b>▸ 어떻게 재나요?</b> 를 펼치면 이분법의 단계가 표로 나옵니다.
+<b>식 맞춤보다 정의대로 잰 값을 앞에 두는 이유</b>도 함께 적혀 있으니 읽어 보세요
+(맞춤은 R² 가 매우 높아도 Ir 을 실제보다 낮게 내놓습니다 — 그 식이 단순한 RC 막을
+가정하기 때문입니다).</p>
+<div class="box warn">
+  <span class="t">자동 측정은 위쪽 그래프에 그려지지 않습니다</span>
+  <p>수백 번의 시뮬레이션을 겹쳐 그리면 알아볼 수 없기 때문에 화면 없이 따로 돌립니다.
+  위 전류·막전위 그래프는 마지막으로 <b class="ui">▶ 실행</b> 한 결과 그대로입니다.
+  특정 조건을 눈으로 보려면 <b>결과 표의 행을 클릭</b>(그 조건이 펄스 패널에 들어갑니다)
+  → <b class="ui">새 세포</b> → <b class="ui">▶ 실행</b> 하세요.</p>
+</div>
+
+<h3 id="iii-2">III-2. 순응 (accommodation)</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 역치는 고정된 수가 아니다</span>
+  <p>I-1 에서 역치전류를 하나의 수로 구했습니다. 그런데 그 수는
+  <b>"쉬고 있던 세포에 갑자기 자극을 주었을 때"</b> 의 값입니다.
+  세포가 <b>직전에 무엇을 겪었느냐</b>에 따라 역치는 달라집니다.</p>
+
+  <p><b>순응(accommodation)</b> 이란, 막을 <b>천천히 또는 오래</b> 탈분극시켜 두면
+  <b>역치가 올라가는</b> 현상입니다. 역치 아래의 약한 탈분극이 계속되는 동안</p>
+  <ul style="margin-top:2px">
+    <li><b>h 가 내려갑니다</b> — Na 채널이 열리기도 전에 불활성화되어 버립니다.</li>
+    <li><b>n 이 올라갑니다</b> — 막아야 할 K 외향전류가 미리 커집니다.</li>
+  </ul>
+  <p>둘 다 발화를 어렵게 하는 방향입니다. 그래서 같은 세기의 자극이라도
+  <b>전조건화가 있었느냐 없었느냐</b>에 따라 발화하기도 하고 못 하기도 합니다.
+  이 실험은 바로 그 두 경우를 나란히 놓고 비교합니다.</p>
+
+  <p>핵심은 <b>게이트의 시간상수 차이</b>입니다. m 은 빨라서 아무리 천천히 올려도
+  막전위를 따라오지만, h 와 n 은 느려서 <b>천천히 올리면 따라오고 급히 올리면
+  못 따라옵니다.</b> 그래서 같은 높이까지 가더라도 <b>급히</b> 올리면 h 가 아직
+  높은 채로 Na 채널이 열려 발화하고, <b>천천히</b> 올리면 h 가 미리 내려가 발화하지
+  못합니다. 즉 세포는 막전위의 <b>높이</b>만이 아니라 <b>변화 속도</b>에도
+  반응합니다.</p>
+
+  <p><b>어디서 드러나는가.</b> 느린 전위 변화는 흘려보내고 빠른 변화에만 반응하게
+  하는 일종의 고역통과 필터로 작동합니다. 전기자극에서 경사(ramp) 자극으로는
+  정상 신경을 잘 흥분시키지 못하는 것이 대표적인 예입니다
+  (탈신경된 근육은 순응이 약해 경사 자극에도 반응하므로, 과거에는 이 차이를
+  진단에 썼습니다). 또 <a href="#iii-1">III-1</a> 의 strength–duration 곡선이
+  긴 자극 쪽에서 단순 RC 이론보다 평탄해지는 것도 이 순응 때문입니다.</p>
+  <p>다만 이것은 <b>막 흥분성 수준의 순응</b>입니다. 감각수용기가 지속 자극에
+  둔감해지는 "순응" 에는 수용기 구조의 기계적 성질이나 수용체 탈감작 등 다른
+  기전도 함께 작용하므로, 같은 말이라고 바로 같은 기전으로 묶지는 마세요.</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>III-2. 순응 (accommodation)</b></div>
+  <dl>
+    <dt>자극</dt><dd>2 에피소드<br>
+        · <b>에피소드 1</b> — 펄스 2 없음, <b>펄스 3 (500 pA · 4 ms)</b> 만<br>
+        · <b>에피소드 2</b> — 역치 이하의 자극 <b>(50 pA)이 100 ms 동안</b> 들어간 뒤
+          이어서 같은 <b>펄스 3 (500 pA · 4 ms)</b></dd>
+    <dt>채널</dt><dd>INa(HH) = 3, IKdr(HH) = 15, INSC = 2</dd>
+    <dt>표시</dt><dd>전류 −1 ~ 1 nA (게이트를 함께 보기 좋은 범위)</dd>
+  </dl>
+</div>
+<p><b class="ui">▶ 실행</b>. 같은 펄스 3 인데도 에피소드 1 에서는 활동전압이 발생하고,
+에피소드 2 에서는 발생하지 않습니다.</p>
+<p class="q">1) 펄스 3 에 의한 막전압 반응이 에피소드 1 과 2 에서 다른 이유는 무엇일까요?</p>
+<div class="box tip">
+  <span class="t">게이트를 켜서 보세요</span>
+  <p><b class="ui">m · h · n (게이트) 표시</b> 또는
+  <b class="ui">gNa · gK (전도도) 표시</b> 를 체크하세요. 에피소드 2 에서 100 ms 의
+  약한 탈분극이 이어지는 동안 <b>h 가 서서히 내려가고 n 이 서서히 올라가</b> 있는 것이
+  보입니다. 즉 펄스 3 이 도착했을 때 <b>Na 채널은 이미 상당수 불활성화되어 있고
+  K 전류는 이미 커져 있습니다.</b></p>
+  <p>두 에피소드가 겹쳐 복잡하면 <b class="ui">에피소드 수</b>를 1 로 하거나
+  <b class="ui">에피소드 겹쳐 그리기 (Overlap)</b> 를 해제하세요.
+  <b class="ui">커서</b> 드롭다운에서 읽을 에피소드를 지정해도 됩니다.</p>
+</div>
+<p class="q">2) 순응 현상이란 무엇인지 설명해 보시오. 또 자극을 천천히 올리는
+경사(ramp) 자극에서 왜 역치가 높아지는지 같은 논리로 설명해 보시오.</p>
+
+<h3 id="iii-3">III-3. Anodal break</h3>
+
+<div class="box why">
+  <span class="t">무엇을 보는 실험인가 — 자극을 <u>끊었을 때</u> 나는 활동전압</span>
+  <p>이름부터 풀어 봅시다. 세포 밖에 두 전극을 놓고 전류를 흘리면,
+  <b>음극(cathode)</b> 근처의 막은 탈분극되고 <b>양극(anode)</b> 근처의 막은
+  <b>과분극</b>됩니다. 그 과분극이 이어지는 동안에는 아무 일도 없다가,
+  자극을 <b>끊는(break) 순간</b>에 양극 쪽에서 활동전압이 터집니다.
+  그래서 <b>anodal break excitation</b> 입니다
+  (반동 흥분 <i>rebound excitation</i>, 억제 후 반동
+  <i>post-inhibitory rebound</i> 라고도 합니다).</p>
+
+  <p>이 시뮬레이터에는 전극이 하나뿐이므로, 같은 상황을 <b>외향전류 펄스</b>
+  — 부호가 (−) 인 자극 — 로 만듭니다. 막을 한참 과분극시켰다가 끊으면 됩니다.</p>
+
+  <p><b>기전은 게이트의 느림입니다.</b> 과분극이 계속되는 동안</p>
+  <ul style="margin-top:2px">
+    <li><b>h 가 커집니다</b> — Na 채널의 불활성화가 풀립니다(de-inactivation).
+        평소보다 더 많은 Na 채널이 "열릴 준비" 를 마칩니다.</li>
+    <li><b>n 이 작아집니다</b> — K 전도도가 평소보다 줄어듭니다.</li>
+  </ul>
+  <p>자극을 끊으면 막전위는 비교적 빨리 원래 값으로 돌아오지만,
+  <b>h 와 n 은 느려서 한동안 그 상태로 남아 있습니다.</b> 그 사이의 막은
+  <b>Na 전류가 들어올 여지는 크고 이를 막을 K 전류는 작은</b>, 즉
+  <b>역치가 일시적으로 낮아진</b> 상태입니다. 그래서 새로 자극을 주지 않아도
+  스스로 발화합니다. Hodgkin 과 Huxley 가 1952년 논문에서 자기 모델로
+  이 현상을 재현해 보인 고전적인 예입니다.</p>
+
+  <p><b>왜 중요한가.</b> "억제가 끝나면 오히려 발화한다" 는 이 성질은 신경계가
+  <b>리듬</b>을 만드는 기본 재료입니다. 서로 억제하는 두 신경세포 집단이 번갈아
+  반동 발화하면 저절로 진동이 생깁니다(호흡 리듬, 보행 리듬 등). 시상 신경세포가
+  수면 중에 보이는 반동 발화도 같은 원리이며, 다만 거기서는 Na 의 h 대신
+  <b>T형 Ca 전류의 불활성화 해제</b>가 주역입니다. 임상에서는 전기자극 시
+  <b>의도하지 않은 양극 쪽 흥분</b>으로 나타나기도 합니다.</p>
+
+  <p><a href="#iii-2">III-2 의 순응</a>과 짝을 이루는 현상입니다. 둘 다
+  <b>"h 와 n 이 느리다"</b> 는 같은 사실에서 나오는데, 막을 <b>탈분극</b> 쪽으로
+  천천히 끌면 역치가 <b>높아지고</b>(순응), <b>과분극</b> 쪽으로 끌었다 놓으면
+  역치가 <b>낮아집니다</b>(anodal break).</p>
+</div>
+
+<div class="setup">
+  <div class="hd">실습 항목 → <b>III-3. Anodal break</b></div>
+  <dl>
+    <dt>자극</dt><dd>펄스 2 = <b>−0.2 nA · 50 ms</b>
+        — 부호가 (−) 이므로 <b>외향전류 = 과분극</b></dd>
+    <dt>채널</dt><dd>INa(HH) = 3, IKdr(HH) = 5, INSC = 2.2</dd>
+  </dl>
+</div>
+<p class="q">1) 내향 전류 자극 대신 <b>외향 전류 펄스</b>를 주입하면 어떤 결과가 나올까요?
+위 설정으로 실행해 보고, <b>자극이 끝난 뒤에 활동전압이 발생하는 이유</b>를 설명하시오.</p>
+<p>실행하면 자극 동안 막전위가 크게 과분극되고, <b>자극이 끝난 한참 뒤에</b>
+활동전압이 발생합니다. A·B 로 자극 종료 시점과 활동전압 시점의 간격을 재 보세요.</p>
+<div class="box tip">
+  <span class="t">게이트로 보면 분명합니다</span>
+  <p><b class="ui">m · h · n (게이트) 표시</b> 를 켜고 전류 Y 를 <code>−1 ~ 1</code> 로
+  하세요. 과분극 동안 <b>h 가 올라가고(불활성화가 풀리고) n 이 내려갑니다</b>.
+  자극이 끝나 막전위가 원래대로 돌아올 때, h 는 아직 평소보다 높고 n 은 아직 낮아
+  <b>Na 전류가 들어올 여지는 크고 K 전류는 작은</b> 상태 — 즉 <b>역치가 일시적으로
+  낮아진</b> 상태가 됩니다. h·n 이 원래 값으로 돌아가는 데 걸리는 시간을 A·B 로 재 보면
+  왜 자극 종료 후 한참 뒤에야 발화하는지 설명할 수 있습니다.</p>
+</div>
+<p class="q">이 현상을 III-2 의 순응과 비교하시오. 두 현상 모두 <b>h 와 n 이 느리다</b>는
+같은 사실에서 나오는데, 방향이 반대인 이유는 무엇입니까?</p>
+
+
+<h2 id="appendix">부록</h2>
+
+<h3 id="model">A. 모델 요약</h3>
+<p>HH 전류는 다음 식으로 계산됩니다(막전압 V 의 단위는 mV, 시간은 ms).</p>
+<div class="eq" style="text-align:left;line-height:2.2">
+α<sub>m</sub> = 0.1·(−40−V) / (e<sup>(−40−V)/10</sup> − 1) &nbsp;&nbsp;&nbsp;
+β<sub>m</sub> = 4·e<sup>(−65−V)/18</sup><br>
+α<sub>h</sub> = 0.07·e<sup>(−65−V)/20</sup> &nbsp;&nbsp;&nbsp;
+β<sub>h</sub> = 1 / (e<sup>(−35−V)/10</sup> + 1)<br>
+α<sub>n</sub> = 0.01·(−55−V) / (e<sup>(−55−V)/10</sup> − 1) &nbsp;&nbsp;&nbsp;
+β<sub>n</sub> = 0.125·e<sup>(−65−V)/80</sup>
+</div>
+<p>각 게이트는 <code>dx/dt = α(1−x) − βx</code> 를 따르며,
+<code>x<sub>∞</sub> = α/(α+β)</code>, <code>τ<sub>x</sub> = 1/(α+β)</code> 입니다.
+전류는 <code>I<sub>Na</sub> ∝ m³h</code>, <code>I<sub>K</sub> ∝ n⁴</code> 입니다.</p>
+<p>막전압은 <code>C·dV/dt = −(모든 막전류의 합) + I<sub>stim</sub></code> 으로 적분합니다.
+시간간격은 막전압 변화 속도에 따라 자동으로 조절되며,
+<b>계산 · 기록</b> 탭의 <b class="ui">고정 시간간격 dt</b> 에 값을 넣으면 고정됩니다
+(0 = 자동).</p>
+<p>이온농도와 온도는 <b>이온</b> 및 <b>실험조건</b> 탭에서 바꿀 수 있습니다. 기본값은
+다음과 같습니다 — II-1 · II-3 에서 E<sub>Na</sub> · E<sub>K</sub> 를 계산할 때 쓰세요.</p>
+<table>
+  <tr><th class="n">[Na<sup>+</sup>]<sub>o</sub></th><th class="n">[Na<sup>+</sup>]<sub>i</sub></th>
+      <th class="n">[K<sup>+</sup>]<sub>o</sub></th><th class="n">[K<sup>+</sup>]<sub>i</sub></th>
+      <th class="n">[Ca<sup>2+</sup>]<sub>o</sub></th><th class="n">온도</th></tr>
+  <tr><td class="n">140 mM</td><td class="n">5.4 mM</td><td class="n">5.4 mM</td>
+      <td class="n">140 mM</td><td class="n">1.8 mM</td><td class="n">36 °C</td></tr>
+</table>
+<p>화면 맨 아래 띠에 현재 세포내 농도와 막전위가 계속 표시됩니다.</p>
+
+<h4 id="drive">구동력 — 옴형과 정전장</h4>
+<p>전류는 <b>(열린 정도) × (구동력)</b> 으로 계산합니다. 열린 정도는 m³h · n⁴ 로
+정해지지만, <b>구동력</b>을 어떻게 쓸지는 두 가지 선택지가 있습니다.</p>
+<table>
+  <tr><th style="width:110px">옴형 (선형)</th>
+      <td><code>I = ḡ·(V − E)</code> — 평형전위에서 0 이고 거기서 멀어질수록
+          <b>직선</b>으로 커집니다. <b>H-H 원논문이 쓴 형태</b>입니다.</td></tr>
+  <tr><th>정전장 (GHK)</th>
+      <td>막 속 전기장이 일정하다고 보고 Goldman–Hodgkin–Katz 식으로 계산합니다.
+          역시 평형전위에서 0 이지만, <b>안팎 농도가 다르면 I–V 가 한쪽으로
+          휩니다</b>(정류, rectification).</td></tr>
+</table>
+<p class="q">그럼 정전장이 더 정확한가요?</p>
+<p><b>무엇에 대해 정확한지</b>에 따라 답이 다릅니다.</p>
+<ul>
+  <li><b>실제 통로의 I–V 모양으로는 정전장이 더 현실적입니다.</b>
+      이 세포의 농도는 [Na]<sub>o</sub>/[Na]<sub>i</sub> = 140/5.4,
+      [K]<sub>i</sub>/[K]<sub>o</sub> = 140/5.4 로 <b>약 26 배</b> 비대칭입니다.
+      이렇게 한쪽이 훨씬 진하면 실제 통로의 I–V 는 직선이 되지 않고 휘며,
+      정전장 식이 그 휨을 설명합니다. 옴형은 평형전위 근처에서만 좋은 근사입니다.
+      <br>다만 정전장도 <b>근사</b>입니다 — 실제 통로에는 이온 포화, 통로 안
+      여러 이온의 상호작용, 표면전하 효과가 있어 GHK 가 정답인 것은 아닙니다.</li>
+  <li><b>그러나 II 장의 분석을 재현하는 데에는 옴형이 맞습니다.</b>
+      II-2 · II-3 · II-5 는 모두 <code>G = I/(V − E)</code> 로 전도도를 구해
+      그것이 m³h 또는 n⁴ 에 비례한다고 가정합니다. <b>이 가정이 성립하는 것은
+      옴형일 때뿐</b>입니다. 정전장에서는 I 가 (V−E) 에 비례하지 않으므로
+      <code>I/(V−E)</code> 가 n⁴ 에서 벗어납니다.</li>
+</ul>
+<p>실제로 II-3 · II-4 의 자동 측정으로 n<sub>∞</sub> 를 구해 이론값과 비교하면
+차이가 분명합니다.</p>
+<table>
+  <tr><th>구동력</th><th class="n">−60 mV</th><th class="n">−30 mV</th>
+      <th class="n">0 mV</th><th class="n">+40 mV</th></tr>
+  <tr><td><b>옴형</b></td><td class="n">+3.5 %</td><td class="n">+3.6 %</td>
+      <td class="n">+3.5 %</td><td class="n">+3.5 %</td></tr>
+  <tr><td><b>정전장</b></td><td class="n">−24.5 %</td><td class="n">−16.7 %</td>
+      <td class="n">−8.1 %</td><td class="n">+3.5 %</td></tr>
+</table>
+<p>(측정한 n<sub>∞</sub> 가 이론값에서 벗어난 정도.) 옴형에서는 오차가
+<b>모든 전압에서 똑같은 +3.5 %</b> 입니다. 이것은 곡선이 틀린 것이 아니라
+<b>가장 높은 전압의 값을 1 로 두고 정규화</b>했기 때문입니다
+(그 전압의 참값이 0.966 이고, 0.966 × 1.035 = 1.000). 즉 <b>모양은 n<sub>∞</sub>⁴ 와
+정확히 일치</b>합니다. 반면 정전장에서는 오차가 전압에 따라 −24 % 에서 +4 % 까지
+<b>기울어져</b>, 측정한 곡선이 n<sub>∞</sub>⁴ 와 모양부터 다릅니다.</p>
+<div class="box warn">
+  <span class="t">주의 — 선택 상자가 언제 작동하는지</span>
+  <p><b>계산 · 기록</b> 탭의 <b class="ui">HH 구동력</b> 선택은
+  <b class="ui">HH 모델 전용 계산</b> 을 <b>켰을 때만</b> 적용됩니다.
+  실습 기본 설정(해제 상태)에서는 INa(HH)·IKdr(HH) 가 <b>언제나 정전장</b>으로
+  계산됩니다. 위 표의 “정전장” 줄이 곧 실습 기본 설정의 결과입니다.</p>
+  <p>그래서 II-4 자동 측정에서 <b>n<sub>∞</sub> 측정값이 이론값과 벌어지는</b> 것이고,
+  이 편차는 측정 실수가 아니라 <b>“옴형 전도도”라는 가정을 정전장 전류에
+  적용했기 때문</b>입니다. 두 구동력으로 각각 돌려 비교해 보면 그 점이 분명해집니다.</p>
+</div>
+
+<h3 id="abbr">B. 전류 약자 일람</h3>
+<table>
+  <tr><th style="width:190px">표시 이름</th><th style="width:110px">약자</th><th>이름</th></tr>
+  <tr><td>내향성 정류 K</td><td>IK1</td><td>Inward rectifier K current</td></tr>
+  <tr><td>Na 통로 (Luo-Rudy)</td><td>INa</td><td>Na channel</td></tr>
+  <tr><td>빠른 지연정류 K</td><td>IKr</td><td>Rapidly activating delayed rectifier K current</td></tr>
+  <tr><td>일과성 외향 K</td><td>Ito</td><td>Transient outward K channel</td></tr>
+  <tr><td>지속성 외향 K</td><td>IKsus</td><td>Sustained outward K channel</td></tr>
+  <tr><td>L형 Ca</td><td>ICaL</td><td>L-type Ca channel</td></tr>
+  <tr><td>T형 Ca</td><td>ICaT</td><td>T-type Ca channel</td></tr>
+  <tr><td>느린 지연정류 K</td><td>IKs</td><td>Slowly activating delayed rectifier K current</td></tr>
+  <tr><td>과분극 활성</td><td>If (Ih)</td><td>Hyperpolarisation activated channel</td></tr>
+  <tr><td>ACh 활성 K</td><td>GirK</td><td>G-protein coupled inward rectifier K current</td></tr>
+  <tr><td><b>Na 전류 (HH)</b></td><td><b>INa(HH)</b></td><td>H-H 모델에 의한 Na 전류</td></tr>
+  <tr><td><b>K 전류 (HH)</b></td><td><b>IKdr</b></td><td>H-H 모델에 의한 K 전류</td></tr>
+  <tr><td>배경 Ca</td><td>IbCa</td><td>Background Ca channel</td></tr>
+  <tr><td>비선택 양이온 (leak)</td><td>INSC</td><td>Nonselective cation channel</td></tr>
+  <tr><td>Na-Ca 교환체</td><td>INaCa</td><td>Na-Ca exchanger</td></tr>
+  <tr><td>Na-K 펌프</td><td>INaK</td><td>Na-K pump</td></tr>
+</table>
+<p><b>채널 배율</b> 탭의 값은 각 전류의 최대 전도도 배율이고, 마지막 항목
+<code>Cell Capacitance Factor</code> 는 세포 크기(용량) 배율입니다.</p>
+
+<h3 id="values">C. 실습 설정값 일람</h3>
+<p>실습 항목을 고르면 아래 값이 자동으로 적용됩니다. 직접 바꿔 가며 실험할 때
+기준으로 쓰세요.</p>
+<h4>채널 배율</h4>
+<table>
+  <tr><th>실습 항목</th><th class="n">INa(HH)</th><th class="n">IKdr(HH)</th>
+      <th class="n">GirK</th><th class="n">INSC</th></tr>
+  <tr><td>I-1 · III-1</td><td class="n">3</td><td class="n">2</td>
+      <td class="n">10</td><td class="n">3</td></tr>
+  <tr><td>I-2</td><td class="n">2</td><td class="n">2</td>
+      <td class="n">10</td><td class="n">3</td></tr>
+  <tr><td>II-1 ~ II-3</td><td class="n">0.8</td><td class="n">1.5</td>
+      <td class="n">0</td><td class="n">0.02</td></tr>
+  <tr><td>III-2</td><td class="n">3</td><td class="n">15</td>
+      <td class="n">0</td><td class="n">2</td></tr>
+  <tr><td>III-3</td><td class="n">3</td><td class="n">5</td>
+      <td class="n">0</td><td class="n">2.2</td></tr>
+</table>
+<h4>자극 프로토콜</h4>
+<table>
+  <tr><th>실습 항목</th><th>유지</th><th>펄스 1</th><th>펄스 2</th><th>펄스 3</th>
+      <th>복귀</th><th class="n">에피소드</th></tr>
+  <tr><td>I-1</td><td>0 · 10 ms</td><td>—</td>
+      <td>−0.20 nA · 10 ms<br>(+0.05 nA/ep)</td><td>—</td><td>80 ms</td><td class="n">10</td></tr>
+  <tr><td>I-1 2)3)</td><td>0 · 10 ms</td><td>—</td><td>0.20 nA · 10 ms</td><td>—</td>
+      <td>80 ms</td><td class="n">1</td></tr>
+  <tr><td>I-2</td><td>0 · 10 ms</td><td>0.6 nA · 3 ms</td>
+      <td>0 nA · 5 ms<br>(+4 ms/ep)</td><td>0.6 nA · 3 ms</td><td>50 ms</td><td class="n">15</td></tr>
+  <tr><td>II-1</td><td>−110 mV · 2 ms</td><td>—</td>
+      <td>−80 mV · 8 ms<br>(+10 mV/ep)</td><td>—</td><td>−110 mV · 4 ms</td><td class="n">17</td></tr>
+  <tr><td>II-2</td><td>−80 mV · 10 ms</td><td>—</td>
+      <td>−110 mV · 30 ms<br>(+10 mV/ep)</td><td>0 mV · 10 ms</td>
+      <td>−80 mV · 20 ms</td><td class="n">10</td></tr>
+  <tr><td>II-3</td><td>−80 mV · 2 ms</td><td>—</td>
+      <td>−60 mV · 20 ms<br>(+10 mV/ep)</td><td>—</td><td>−80 mV · 5 ms</td><td class="n">11</td></tr>
+  <tr><td>III-1</td><td>0 · 10 ms</td><td>—</td>
+      <td>0.05 nA · 50 ms<br>(+0.01 nA/ep)</td><td>—</td><td>80 ms</td><td class="n">5</td></tr>
+  <tr><td>III-2</td><td>0 · 10 ms</td><td>—</td>
+      <td>0 nA · 100 ms<br>(+0.05 nA/ep)</td><td>0.5 nA · 4 ms</td>
+      <td>50 ms</td><td class="n">2</td></tr>
+  <tr><td>III-3</td><td>0 · 50 ms</td><td>—</td><td>−0.2 nA · 50 ms</td><td>—</td>
+      <td>50 ms</td><td class="n">1</td></tr>
+</table>
+
+<h3 id="export">D. 데이터 내보내기</h3>
+<table>
+  <tr><th style="width:200px">버튼</th><th>나오는 것</th></tr>
+  <tr><td><b class="ui">PNG</b></td><td>전류 또는 막전위 그래프 그림</td></tr>
+  <tr><td><b class="ui">CSV 저장</b> (측정표)</td>
+      <td>에피소드별 자극 세기 · Vm max/min · APD · 각 전류의 max/min 과 그 시각.
+          I–V 곡선, activation/inactivation 곡선을 엑셀에서 바로 그릴 수 있습니다</td></tr>
+  <tr><td><b class="ui">CSV 저장</b> (강도–지속시간)</td>
+      <td>(자극기간, 역치전류) 표 + 측정한 Ir · C + 식 맞춤 결과</td></tr>
+  <tr><td><b class="ui">CSV 저장</b> (τ)</td>
+      <td>막전압마다 56 % 도달시간 · τ(측정/이론) · n<sub>∞</sub> ·
+          α<sub>n</sub> · β<sub>n</sub></td></tr>
+  <tr><td><b class="ui">CSV 저장</b> (재구성)</td>
+      <td>재구성 파형의 t · V · m · h · n · I<sub>Na</sub> · I<sub>K</sub> 전체 시계열</td></tr>
+  <tr><td><b class="ui">데이터 저장 (.txt)</b></td>
+      <td>기록된 전체 시계열 (탭 구분 텍스트)</td></tr>
+</table>
+<p>저장된 파일을 프로그램으로 <b>다시 불러오는 기능은 없습니다</b>.
+결과는 그때그때 PNG · CSV 로 내보내 두세요.</p>
+
+<div class="box tip">
+  <span class="t">보고서를 쓸 때</span>
+  <p>자동 측정 패널들은 숫자만 내놓지 않고, <b>측정값이 이론값과 왜 다른지</b>를
+  각 카드의 접이식 설명에 적어 두었습니다 (τ 가 이론값보다 작게 나오는 이유,
+  n<sub>∞</sub> 추정의 오차, 식 맞춤이 Ir 을 낮게 내놓는 이유).
+  측정값과 이론값의 차이를 <b>"측정 방법이 어떤 가정을 깔고 있는가"</b> 로 설명하는 것이
+  이 실습의 핵심입니다. 숫자를 얻는 데서 끝내지 마세요.</p>
+</div>
+
+<footer class="bot">
+  활동전압 시뮬레이션 실습 매뉴얼 · Hodgkin–Huxley 모델 ·
+  <code>heart_hh_standalone.html</code>
+</footer>
+
+</div>
+</body>
+</html>
